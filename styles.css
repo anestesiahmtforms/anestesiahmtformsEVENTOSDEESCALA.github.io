@@ -62,6 +62,13 @@ body.modal-open {
   box-shadow: 0 22px 40px rgba(181, 100, 4, 0.22);
 }
 
+.hero-copy {
+  flex: 1 1 auto;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
 .hero-side-icon {
   margin-left: auto;
   width: 112px;
@@ -112,15 +119,20 @@ body.modal-open {
 
 .hero-kicker {
   display: block;
-  font-size: 1rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: rgba(125, 77, 10, 0.96);
+  margin: 0 auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255, 248, 220, 0.98) 0%, rgba(248, 221, 152, 0.96) 100%);
+  box-shadow: 0 10px 22px rgba(181, 100, 4, 0.16);
+  font-size: 1.08rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  color: rgba(125, 77, 10, 0.98);
   text-transform: uppercase;
 }
 
 .hero-copy h1 {
-  margin: 2px 0 0;
+  margin: 10px 0 0;
   font-size: clamp(2.1rem, 7vw, 2.9rem);
   line-height: 0.9;
   font-weight: 900;
@@ -137,6 +149,56 @@ body.modal-open {
 
 .schedule-card {
   border-color: rgba(199, 154, 62, 0.46);
+}
+
+.entry-card {
+  border-color: rgba(13, 50, 87, 0.14);
+}
+
+.entry-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.entry-field {
+  display: grid;
+  gap: 5px;
+}
+
+.entry-field--full {
+  grid-column: 1 / -1;
+}
+
+.entry-field span {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: rgba(20, 50, 84, 0.8);
+  text-transform: uppercase;
+}
+
+.entry-field input,
+.entry-field textarea {
+  width: 100%;
+  border: 1px solid rgba(13, 50, 87, 0.12);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.82);
+  font: inherit;
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.entry-field textarea {
+  resize: vertical;
+  min-height: 104px;
+}
+
+.entry-field input:focus,
+.entry-field textarea:focus {
+  outline: 2px solid rgba(24, 183, 183, 0.24);
+  border-color: rgba(24, 183, 183, 0.56);
 }
 
 .search-banner {
@@ -1166,6 +1228,14 @@ button:hover,
 
   .quick-actions {
     gap: 5px;
+  }
+
+  .entry-form {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-field--full {
+    grid-column: auto;
   }
 
   .soft-button,

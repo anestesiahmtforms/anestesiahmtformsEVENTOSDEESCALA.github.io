@@ -30,6 +30,7 @@
 
   const elements = {
     dateInput: document.getElementById("dateInput"),
+    eventDateInput: document.getElementById("eventDateInput"),
     prevButton: document.getElementById("prevButton"),
     todayButton: document.getElementById("todayButton"),
     nextButton: document.getElementById("nextButton"),
@@ -112,6 +113,9 @@
 
   function render(dateKey) {
     elements.dateInput.value = dateKey;
+    if (elements.eventDateInput) {
+      elements.eventDateInput.value = dateKey;
+    }
     const day = byDate.get(dateKey);
     const isToday = dateKey === todayKey;
 
