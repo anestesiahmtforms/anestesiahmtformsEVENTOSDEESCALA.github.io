@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260812-5">
+  <link rel="stylesheet" href="./styles.css?v=20260812-6">
 </head>
 <body>
   <div class="page-shell">
@@ -54,6 +54,10 @@
               <input id="dateInput" type="date">
             </label>
 
+            <button id="installButton" class="install-banner hidden" type="button">
+              Instalar app na tela do smartphone
+            </button>
+
             <div class="quick-actions">
               <button id="prevButton" class="soft-button" type="button">Anterior</button>
               <button id="todayButton" class="primary-button" type="button">Hoje</button>
@@ -72,7 +76,7 @@
 
         <div class="badge-row">
           <span id="weekdayBadge" class="capsule capsule-green"></span>
-          <span class="capsule capsule-blue">Correspondencia de ferias nas siglas</span>
+          <span class="capsule capsule-blue">Anestesistas do dia</span>
         </div>
 
         <div id="emptyState" class="empty-state hidden">
@@ -81,7 +85,7 @@
 
         <div id="siglasGrid" class="siglas-grid"></div>
 
-        <section class="sub-banner vacation-banner">
+        <section id="vacationCard" class="sub-banner vacation-banner">
           <div class="vacation-banner__actions">
             <a
               class="vacation-file-link vacation-file-link--scale"
@@ -164,6 +168,7 @@
   </div>
 
   <script src="./data.js?v=20260803-2"></script>
-  <script src="./app.js?v=20260812-2"></script>
+  <script src="./sync-config.js?v=20260804-3"></script>
+  <script src="./app.js?v=20260812-3"></script>
 </body>
 </html>
