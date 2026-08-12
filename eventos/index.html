@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f766e" />
+    <meta
+      name="description"
+      content="PWA para registrar eventos de escala com envio em tempo real para o Google Sheets."
+    />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="assets/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Manrope:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Eventos de Escala</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="auth-card" id="authCard">
+        <div class="hero-badge">Acesso protegido</div>
+        <img class="hero-logo auth-logo" src="assets/hero-icon.png" alt="Gestão Operacional" />
+        <h1>Eventos de Escala</h1>
+        <p class="auth-copy">
+          Digite a senha de 4 dígitos para abrir o aplicativo e registrar os eventos com segurança.
+        </p>
+        <form id="authForm" class="auth-form" novalidate>
+          <label class="field field-accent-a auth-field">
+            <span>Senha de acesso</span>
+            <input
+              id="passwordInput"
+              name="password"
+              type="password"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              maxlength="4"
+              placeholder="****"
+              required
+            />
+          </label>
+          <button type="submit" id="unlockButton">Entrar no app</button>
+        </form>
+      </section>
+
+      <div id="appContent" class="hidden">
+        <section class="hero-card">
+          <img class="hero-logo" src="assets/hero-icon.png" alt="Gestão Operacional" />
+          <h1>Eventos de Escala</h1>
+        </section>
+
+        <section class="install-card" id="installCard">
+          <div>
+            <p class="queue-title">Instalar no smartphone</p>
+            <p class="queue-copy" id="installHelpText">
+              Adicione este app à tela inicial para usar como aplicativo no celular.
+            </p>
+          </div>
+          <button type="button" id="installButton" class="secondary-button">
+            Instalar aplicativo
+          </button>
+        </section>
+
+        <section class="form-card">
+          <div class="section-heading">
+            <p class="queue-title">Lançamento do evento</p>
+          </div>
+
+          <form id="eventForm" novalidate>
+            <div class="field-grid">
+              <label class="field field-accent-a">
+                <span>Data do Evento</span>
+                <input id="data" name="data" type="date" required />
+              </label>
+
+              <label class="field field-accent-b">
+                <span>Tipo de Evento</span>
+                <select id="evento" name="evento" required></select>
+              </label>
+
+              <label class="field field-accent-a hidden" id="eventoOutroField">
+                <span>Descrição do evento</span>
+                <input
+                  id="eventoOutro"
+                  name="eventoOutro"
+                  type="text"
+                  maxlength="120"
+                  placeholder="Descreva o evento"
+                />
+              </label>
+
+              <label class="field field-accent-b hidden" id="atrasoTempoField">
+                <span>Múltiplo do atraso</span>
+                <select id="atrasoTempo" name="atrasoTempo"></select>
+              </label>
+
+              <label class="field field-accent-a" id="ausenteField">
+                <span>Membro Ausente/Atrasado</span>
+                <select id="ausente" name="ausente" required></select>
+              </label>
+
+              <label class="field field-accent-b" id="presenteField">
+                <span>Substituto</span>
+                <select id="presente" name="presente" required></select>
+              </label>
+
+              <label class="field field-accent-a" id="turnoField">
+                <span>Turno</span>
+                <select id="turno" name="turno" required></select>
+              </label>
+
+              <label class="field field-accent-b" id="devedorField">
+                <span>Pagador</span>
+                <select id="devedor" name="devedor" required></select>
+              </label>
+            </div>
+
+            <label class="field field-accent-a field-wide" id="credorField">
+              <span>Credor</span>
+              <input id="credorResultado" name="credorResultado" type="text" readonly value="Caixinha" />
+            </label>
+
+            <div class="actions">
+              <button type="submit" id="submitButton">
+                <span class="submit-alert">ATENÇÃO</span>
+                <span class="submit-main">Registrar evento</span>
+                <span class="submit-sub">Confira os dados antes do envio!</span>
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section class="queue-card">
+          <div>
+            <p class="queue-title">Fila offline</p>
+            <p class="queue-copy">
+              Se a internet cair, o app guarda os registros e tenta reenviar depois.
+            </p>
+          </div>
+          <strong id="queueCount">0 pendente(s)</strong>
+        </section>
+
+        <div class="queue-action">
+          <button type="button" id="syncButton" class="secondary-button">
+            Reenviar pendentes
+          </button>
+        </div>
+
+        <section class="history-card">
+          <div class="history-head">
+            <div>
+              <p class="queue-title">Último registro sincronizado</p>
+              <p class="queue-copy">
+                Confirmação visual do último conteúdo encontrado diretamente na planilha.
+              </p>
+            </div>
+          </div>
+          <div id="latestSyncedCard" class="history-list"></div>
+        </section>
+
+        <div class="notes-action">
+          <button type="button" id="annotationsButton" class="secondary-button report-button">
+            Abrir anotações do dia
+          </button>
+        </div>
+
+        <div class="notes-action">
+          <button type="button" id="notesRemindersButton" class="secondary-button report-button">
+            Lembretes das anotações
+          </button>
+        </div>
+
+        <section class="monthly-card hidden" id="annotationsSection">
+          <div class="history-head">
+            <div>
+              <p class="queue-title">Anotações do Dia</p>
+              <p class="queue-copy">
+                A área sempre abre pronta para uma nova anotação e envia o conteúdo para a aba `ANOTACOES`.
+              </p>
+            </div>
+          </div>
+
+          <form id="annotationsForm" class="annotations-form" novalidate>
+            <label class="field field-accent-b annotations-field">
+              <span>Notas</span>
+              <textarea
+                id="annotationText"
+                name="annotationText"
+                rows="7"
+                maxlength="4000"
+                placeholder="Digite aqui as anotações do dia"
+                required
+              ></textarea>
+            </label>
+
+            <div class="actions">
+              <button type="submit" id="saveAnnotationButton">Salvar anotações</button>
+            </div>
+          </form>
+
+          <div class="section-close-action">
+            <button type="button" id="closeAnnotationsButton" class="secondary-button report-button">
+              Ocultar anotações do dia
+            </button>
+          </div>
+        </section>
+
+        <section class="monthly-card hidden" id="notesRemindersSection">
+          <div class="history-head">
+            <div>
+              <p class="queue-title">Lembretes das Anotações</p>
+              <p class="queue-copy">
+                Escolha o mês e, se quiser, um dia específico para revisar rapidamente as anotações salvas.
+              </p>
+            </div>
+          </div>
+
+          <div class="monthly-toolbar">
+            <label class="field field-accent-b monthly-field">
+              <span>Mês das anotações</span>
+              <select id="notesMonthSelect" name="notesMonthSelect"></select>
+            </label>
+
+            <label class="field field-accent-a monthly-field">
+              <span>Dia da anotação</span>
+              <input id="notesDateFilter" name="notesDateFilter" type="date" />
+            </label>
+          </div>
+
+          <div class="monthly-summary" id="notesMonthInfo">Nenhum mês disponível.</div>
+          <div id="notesRemindersList" class="monthly-records-list"></div>
+
+          <div class="section-close-action">
+            <button type="button" id="closeNotesRemindersButton" class="secondary-button report-button">
+              Ocultar lembretes das anotações
+            </button>
+          </div>
+        </section>
+
+        <div class="report-action">
+          <button type="button" id="summaryToggleButton" class="secondary-button report-button">
+            Abrir resumo mensal
+          </button>
+        </div>
+
+        <section class="monthly-card hidden" id="summarySection">
+          <div class="history-head">
+            <div>
+              <p class="queue-title">Resumo Mensal</p>
+              <p class="queue-copy">
+                Visualize as relações de pagamento do mês escolhido e gere um PDF para compartilhamento.
+              </p>
+            </div>
+          </div>
+
+          <div class="monthly-toolbar">
+            <label class="field field-accent-a monthly-field">
+              <span>Mês de referência</span>
+              <select id="summaryMonthSelect" name="summaryMonthSelect"></select>
+            </label>
+          </div>
+
+          <div class="monthly-summary" id="summaryMonthInfo">Nenhum mês disponível.</div>
+          <div id="monthlySummaryList" class="monthly-records-list"></div>
+
+          <div class="section-close-action">
+            <button type="button" id="summaryShareButton" class="secondary-button report-button">
+              Enviar PDF no WhatsApp
+            </button>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="sr-only" aria-live="polite">
+      <span class="status-dot" id="connectionDot"></span>
+      <span id="connectionText">Carregando status...</span>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script src="config.js"></script>
+    <script src="app.js" type="module"></script>
+  </body>
+</html>

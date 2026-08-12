@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAHMT</title>
+  <meta name="theme-color" content="#0d3257">
+  <meta name="description" content="Agenda SAHMT com escala diaria, ferias da semana e acesso rapido por data.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <main class="app-frame">
+      <section class="hero-card">
+        <a
+          class="hero-logo-wrap hero-logo-link"
+          href="https://anestesiahmtforms.github.io/"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Abrir pagina Anestesia HMT Forms"
+        >
+          <img src="./sahmt_option1_clean.png" alt="Logo SAHMT" class="hero-logo">
+        </a>
+        <div class="hero-copy">
+          <span class="hero-kicker">Escala semanal</span>
+          <h1>SAHMT</h1>
+        </div>
+        <button
+          id="eventsLauncher"
+          class="hero-side-icon"
+          type="button"
+          aria-label="Abrir app Gestao Operacional"
+        >
+          <img src="./gestao_operacional.png" alt="Gestao Operacional" class="hero-side-icon__image">
+        </button>
+      </section>
+
+      <section id="scheduleCard" class="panel-card schedule-card">
+        <section class="search-banner">
+          <div class="card-header">
+            <div>
+              <p class="card-title">Buscar qualquer dia</p>
+            </div>
+            <p id="rangeLabel" class="range-label"></p>
+          </div>
+
+          <div id="outOfRangeNotice" class="notice hidden">
+            A data escolhida nao esta na escala.
+          </div>
+
+          <div class="controls-grid">
+            <label class="date-field" for="dateInput">
+              <span>Data</span>
+              <input id="dateInput" type="date">
+            </label>
+
+            <button id="installButton" class="install-banner hidden" type="button">
+              Instalar app na tela do smartphone
+            </button>
+
+            <div class="quick-actions">
+              <button id="prevButton" class="soft-button" type="button">Anterior</button>
+              <button id="todayButton" class="primary-button" type="button">Hoje</button>
+              <button id="nextButton" class="soft-button" type="button">Proximo</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="schedule-top">
+          <div>
+            <p id="scheduleHeading" class="eyebrow"></p>
+            <h2 id="formattedDate" class="date-title"></h2>
+          </div>
+          <span id="todayBadge" class="today-badge hidden">Hoje</span>
+        </div>
+
+        <div class="badge-row">
+          <span id="weekdayBadge" class="capsule capsule-green"></span>
+          <span class="capsule capsule-blue">Anestesistas do dia</span>
+        </div>
+
+        <div id="emptyState" class="empty-state hidden">
+          Sem escala cadastrada para esta data.
+        </div>
+
+        <div id="siglasGrid" class="siglas-grid"></div>
+
+        <section id="vacationCard" class="sub-banner vacation-banner">
+          <div class="vacation-banner__actions">
+            <a
+              class="vacation-file-link vacation-file-link--scale"
+              href="./escala-ferias.html"
+              aria-label="Abrir escala e ferias 2026"
+            ><span class="vacation-file-link__scale">Escala</span><span class="vacation-file-link__vacation">/F&eacute;rias</span></a>
+            <a
+              class="vacation-file-link vacation-file-link--labels"
+              href="https://anestesiahmtforms.github.io/anestesiahmtformsetiqueta.github.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Abrir aplicativo de etiquetas"
+            >ETIQUETAS</a>
+          </div>
+        </section>
+      </section>
+
+      <a id="siteBanner" class="site-banner" href="#" target="_blank" rel="noopener noreferrer">👉 SITE SAHMT</a>
+
+      <footer class="footer-banner">
+        By Francisco Tadeu da Mota Albuquerque
+      </footer>
+    </main>
+  </div>
+
+  <div id="contactModal" class="contact-modal hidden" aria-hidden="true">
+    <div id="contactBackdrop" class="contact-modal__backdrop"></div>
+    <section class="contact-sheet" role="dialog" aria-modal="true" aria-labelledby="contactTitle">
+      <div class="contact-sheet__header">
+        <div>
+          <p id="contactKicker" class="contact-sheet__kicker">Sigla selecionada</p>
+          <h2 id="contactTitle">Contato SAHMT</h2>
+        </div>
+        <button id="closeContactModal" class="contact-sheet__close" type="button" aria-label="Fechar contato">Fechar</button>
+      </div>
+
+      <p id="contactSummary" class="contact-sheet__summary"></p>
+      <div id="contactList" class="contact-list"></div>
+    </section>
+  </div>
+
+  <div id="eventsModal" class="events-modal hidden" aria-hidden="true">
+    <div id="eventsBackdrop" class="events-modal__backdrop"></div>
+    <section class="events-sheet" role="dialog" aria-modal="true" aria-labelledby="eventsTitle">
+      <div class="events-sheet__header">
+        <div>
+          <h2 id="eventsTitle">Gestao Operacional</h2>
+        </div>
+        <button id="closeEventsModal" class="events-sheet__close" type="button" aria-label="Fechar Gestao Operacional">Fechar</button>
+      </div>
+
+      <div class="events-frame-wrap">
+        <iframe
+          id="eventsFrame"
+          class="events-frame"
+          title="Gestao Operacional SAHMT"
+          loading="lazy"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allow="clipboard-read; clipboard-write"
+        ></iframe>
+      </div>
+    </section>
+  </div>
+
+  <div id="noticeModal" class="notice-modal hidden" aria-hidden="true">
+    <div class="notice-modal__backdrop"></div>
+    <section class="notice-card" role="dialog" aria-modal="true" aria-labelledby="noticeTitle">
+      <div class="notice-card__glow"></div>
+      <p id="noticeEyebrow" class="notice-card__eyebrow"></p>
+      <h2 id="noticeTitle"></h2>
+      <p id="noticeMessage" class="notice-card__message"></p>
+      <div class="notice-card__footer">
+        <p id="noticeCountdown" class="notice-card__countdown" aria-live="polite"></p>
+        <button id="closeNoticeModal" class="notice-card__close" type="button" disabled>Fechar aviso</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="./data.js?v=20260721-2"></script>
+  <script src="./contacts.js?v=20260721-2"></script>
+  <script src="./sync-config.js?v=20260721-2"></script>
+  <script src="./notices.js?v=20260721-2"></script>
+  <script src="./app.js?v=20260721-2"></script>
+</body>
+</html>

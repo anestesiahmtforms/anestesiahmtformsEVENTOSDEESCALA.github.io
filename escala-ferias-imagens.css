@@ -1,0 +1,64 @@
+:root {
+  color-scheme: light;
+  font-family: "Manrope", "Segoe UI", sans-serif;
+  background: #edf4f3;
+  color: #112f48;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body { margin: 0; padding: 0 0 36px; }
+
+.gallery-header {
+  position: sticky;
+  z-index: 10;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 76px;
+  padding: 12px max(18px, env(safe-area-inset-left)) 12px max(18px, env(safe-area-inset-right));
+  color: #fff;
+  background: linear-gradient(118deg, #0a3654, #08777d);
+  box-shadow: 0 8px 22px rgba(4, 45, 67, .2);
+}
+
+.gallery-header p, .gallery-header h1 { margin: 0; }
+.gallery-header p { font-size: 10px; font-weight: 800; letter-spacing: .16em; opacity: .76; }
+.gallery-header h1 { font-size: clamp(16px, 4.7vw, 22px); line-height: 1.15; }
+
+.return-button {
+  flex: 0 0 auto;
+  padding: 11px 13px;
+  border: 1px solid rgba(255,255,255,.74);
+  border-radius: 999px;
+  color: #072f50;
+  background: #f8fbff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .03em;
+  text-decoration: none;
+  box-shadow: 0 4px 11px rgba(0, 0, 0, .15);
+}
+
+.gallery-content { width: min(100%, 900px); margin: 0 auto; padding: 15px 12px; }
+.gallery-intro { margin: 0 2px 12px; color: #496474; font-size: 12px; line-height: 1.45; }
+
+.gallery-nav { display: flex; gap: 7px; overflow-x: auto; padding: 0 1px 14px; scrollbar-width: none; }
+.gallery-nav::-webkit-scrollbar { display: none; }
+.gallery-nav a { flex: 0 0 auto; padding: 7px 11px; border-radius: 999px; color: #0c5269; background: #d9eeea; font-size: 11px; font-weight: 800; text-decoration: none; }
+
+.schedule-image-card { margin: 0 0 18px; padding: 10px; border: 1px solid #d5e3e4; border-radius: 18px; background: #fff; box-shadow: 0 8px 22px rgba(10, 61, 76, .08); scroll-margin-top: 94px; }
+.schedule-image-card h2 { margin: 1px 4px 9px; color: #145264; font-size: 14px; }
+.schedule-image-card img { display: block; width: 100%; height: auto; border-radius: 10px; background: #f8f8f8; }
+.schedule-image-card--vacation h2 { color: #9a6910; }
+
+@media (max-width: 370px) {
+  .gallery-header { min-height: 67px; }
+  .return-button { padding: 9px 10px; font-size: 9px; }
+  .gallery-content { padding-inline: 8px; }
+  .schedule-image-card { padding: 7px; border-radius: 13px; }
+}
