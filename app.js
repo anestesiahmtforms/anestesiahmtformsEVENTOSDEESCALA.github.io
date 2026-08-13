@@ -43,6 +43,10 @@
   const elements = {
     dateInput: document.getElementById("dateInput"),
     eventDateInput: document.getElementById("eventDateInput"),
+    openEventEntryModal: document.getElementById("openEventEntryModal"),
+    eventEntryModal: document.getElementById("eventEntryModal"),
+    eventEntryBackdrop: document.getElementById("eventEntryBackdrop"),
+    closeEventEntryModal: document.getElementById("closeEventEntryModal"),
     prevButton: document.getElementById("prevButton"),
     todayButton: document.getElementById("todayButton"),
     nextButton: document.getElementById("nextButton"),
@@ -92,6 +96,18 @@
     render(clampKey(todayKey));
   });
 
+  if (elements.openEventEntryModal) {
+    elements.openEventEntryModal.addEventListener("click", openEventEntryModal);
+  }
+
+  if (elements.closeEventEntryModal) {
+    elements.closeEventEntryModal.addEventListener("click", closeEventEntryModal);
+  }
+
+  if (elements.eventEntryBackdrop) {
+    elements.eventEntryBackdrop.addEventListener("click", closeEventEntryModal);
+  }
+
   if (elements.installButton) {
     elements.installButton.addEventListener("click", async () => {
       if (!deferredInstallPrompt) {
@@ -117,6 +133,12 @@
     deferredInstallPrompt = null;
     if (elements.installButton) {
       elements.installButton.classList.add("hidden");
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeEventEntryModal();
     }
   });
 
@@ -589,6 +611,26 @@
   function normalizeEndpoint(value) {
     const trimmed = String(value || "").trim();
     return trimmed || "";
+  }
+
+  function openEventEntryModal() {
+    if (!elements.eventEntryModal) {
+      return;
+    }
+
+    elements.eventEntryModal.classList.remove("hidden");
+    elements.eventEntryModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+  }
+
+  function closeEventEntryModal() {
+    if (!elements.eventEntryModal) {
+      return;
+    }
+
+    elements.eventEntryModal.classList.add("hidden");
+    elements.eventEntryModal.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("modal-open");
   }
 
   function renderVacationLabel() {
