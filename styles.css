@@ -356,6 +356,85 @@ body.modal-open {
   border: 1px solid rgba(13, 50, 87, 0.08);
 }
 
+.records-banner {
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(248, 243, 232, 0.72);
+  border: 1px solid rgba(199, 154, 62, 0.2);
+}
+
+.records-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.record-card {
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(13, 50, 87, 0.08);
+  box-shadow: 0 10px 18px rgba(8, 18, 31, 0.06);
+}
+
+.record-card--tone-1 {
+  background: rgba(236, 246, 252, 0.92);
+}
+
+.record-card--tone-2 {
+  background: rgba(245, 242, 255, 0.92);
+}
+
+.record-card--tone-3 {
+  background: rgba(243, 251, 240, 0.92);
+}
+
+.record-card--tone-4 {
+  background: rgba(255, 246, 235, 0.92);
+}
+
+.record-card__title {
+  margin: 0 0 6px;
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: var(--bg-top);
+}
+
+.record-card__rows {
+  display: grid;
+  gap: 5px;
+}
+
+.record-card__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.record-card__label {
+  flex: 0 0 118px;
+  min-width: 0;
+  font-size: 0.55rem;
+  font-weight: 900;
+  color: rgba(20, 50, 84, 0.72);
+  text-transform: uppercase;
+}
+
+.record-card__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.63rem;
+  font-weight: 700;
+  line-height: 1.35;
+  text-align: right;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 .card-header,
 .schedule-top,
 .badge-row,
@@ -1391,6 +1470,20 @@ button:hover,
 
   .events-frame {
     min-height: 66vh;
+  }
+
+  .record-card__row {
+    gap: 6px;
+    padding: 5px 7px;
+  }
+
+  .record-card__label {
+    flex-basis: 102px;
+    font-size: 0.51rem;
+  }
+
+  .record-card__value {
+    font-size: 0.6rem;
   }
 
   .entry-modal {

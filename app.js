@@ -24,6 +24,7 @@
   const vacationSheetTitle = "FERIAS 2026";
   const eventListsSpreadsheetId = "1oMLWFUWh8K2MSFfqbrVlHICeM9S4ysfya3bvvfEplH0";
   const eventListsSheetTitle = "Listas";
+  const recordsSheetTitle = "Registros";
   const syncConfig = window.SAHMT_SYNC_CONFIG || {};
   const eventEntryConfig = {
     endpointUrl: "https://script.google.com/macros/s/AKfycbx5qHJcAWk0dVGEvd9xnxeW6t7WgLE4nuDw8_pWRb26lh0KCUK4kEGoj4KzKGELenXZ/exec",
@@ -45,6 +46,7 @@
   let sharedStateHash = serializeSiglaState(siglaCheckState);
   let sharedStateTimer = null;
   const pendingSharedUpdates = new Map();
+  let eventRecords = [];
   let memberDirectory = buildFallbackMemberDirectory();
   let dcMemberOptions = buildFallbackDcOptions();
   let eventFieldOptions = buildFallbackEventFieldOptions();
@@ -81,6 +83,10 @@
     todayButton: document.getElementById("todayButton"),
     nextButton: document.getElementById("nextButton"),
     installButton: document.getElementById("installButton"),
+    recordsDateInput: document.getElementById("recordsDateInput"),
+    recordsLoadingState: document.getElementById("recordsLoadingState"),
+    recordsEmptyState: document.getElementById("recordsEmptyState"),
+    recordsList: document.getElementById("recordsList"),
     rangeLabel: document.getElementById("rangeLabel"),
     outOfRangeNotice: document.getElementById("outOfRangeNotice"),
     scheduleHeading: document.getElementById("scheduleHeading"),
@@ -108,12 +114,20 @@
 
   applyScheduleData(data);
   elements.dateInput.value = clampKey(todayKey);
+  if (elements.recordsDateInput) {
+    elements.recordsDateInput.value = todayKey;
+  }
   populateEventEntryOptionLists();
   hydrateMemberDirectory().catch(() => {});
+  hydrateEventRecords().catch(() => {});
   hydrateSharedSiglaState().then(() => render(elements.dateInput.value)).catch(() => {});
 
   elements.dateInput.addEventListener("change", () => {
     render(clampKey(elements.dateInput.value));
+  });
+
+  elements.recordsDateInput?.addEventListener("change", () => {
+    renderRecordsForDate(elements.recordsDateInput.value || todayKey);
   });
 
   elements.prevButton.addEventListener("click", () => {
@@ -808,9 +822,12 @@
     setEventEntryStatus("Salvando dados na planilha...", "");
 
     try {
-      await postEventEntryPayload(payload);
+      const result = await postEventEntryPayload(payload);
       resetEventEntryForm(payload.dataDoEvento);
-      setEventEntryStatus("Evento salvo com sucesso na planilha.", "success");
+      setEventEntryStatus(
+        `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`,
+        "success"
+      );
     } catch (error) {
       setEventEntryStatus("Nao foi possivel sincronizar agora. Confira o endpoint e tente novamente.", "error");
     } finally {
@@ -884,6 +901,8 @@
       if (!response.ok || data.ok === false) {
         throw new Error(data.message || "REQUEST_FAILED");
       }
+
+      return data;
     } finally {
       window.clearTimeout(timeoutId);
     }
@@ -1003,6 +1022,136 @@
     }
   }
 
+  async function hydrateEventRecords() {
+    toggle(elements.recordsLoadingState, true);
+
+    try {
+      eventRecords = await fetchEventRecordsRows();
+    } catch (error) {
+      eventRecords = [];
+    } finally {
+      toggle(elements.recordsLoadingState, false);
+      renderRecordsForDate(elements.recordsDateInput?.value || todayKey);
+    }
+  }
+
+  async function fetchEventRecordsRows() {
+    const url = new URL(`https://docs.google.com/spreadsheets/d/${eventListsSpreadsheetId}/gviz/tq`);
+    url.searchParams.set("tqx", "out:csv");
+    url.searchParams.set("sheet", recordsSheetTitle);
+    url.searchParams.set("range", "A2:L2000");
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha ao carregar aba ${recordsSheetTitle}: ${response.status}`);
+    }
+
+    const csvText = await response.text();
+    return parseCsvRows(csvText)
+      .filter((row) => row.some((cell) => String(cell || "").trim()))
+      .map((row) => ({
+        timestamp: String(row[0] || "").trim(),
+        dataDoEvento: normalizeRecordDate(row[1]),
+        membro: String(row[2] || "").trim(),
+        tipo: String(row[3] || "").trim(),
+        descricao: String(row[4] || "").trim(),
+        multiplo: String(row[5] || "").trim(),
+        substituto: String(row[6] || "").trim(),
+        turno: String(row[7] || "").trim(),
+        pagador: String(row[8] || "").trim(),
+        credor: String(row[9] || "").trim(),
+        valor: String(row[10] || "").trim(),
+        origem: String(row[11] || "").trim()
+      }))
+      .filter((record) => record.dataDoEvento);
+  }
+
+  function renderRecordsForDate(dateKey) {
+    if (!elements.recordsList || !elements.recordsEmptyState) {
+      return;
+    }
+
+    const activeDate = String(dateKey || todayKey).trim();
+    const records = eventRecords.filter((record) => record.dataDoEvento === activeDate);
+    elements.recordsList.innerHTML = "";
+    toggle(elements.recordsEmptyState, records.length === 0);
+
+    records.forEach((record, index) => {
+      const card = document.createElement("article");
+      card.className = `record-card record-card--tone-${(index % 4) + 1}`;
+
+      const title = document.createElement("p");
+      title.className = "record-card__title";
+      title.textContent = `${record.tipo || "Registro"}${record.timestamp ? ` • ${record.timestamp}` : ""}`;
+      card.appendChild(title);
+
+      const rows = document.createElement("div");
+      rows.className = "record-card__rows";
+
+      [
+        ["Data do Evento", record.dataDoEvento],
+        ["Membro", record.membro],
+        ["Tipo de Evento", record.tipo],
+        ["Descricao do evento", record.descricao],
+        ["Multiplo do atraso", record.multiplo],
+        ["Substituto", record.substituto],
+        ["Turno", record.turno],
+        ["Pagador", record.pagador],
+        ["Credor", record.credor],
+        ["Valor a pagar", record.valor],
+        ["Origem", record.origem]
+      ]
+        .filter(([, value]) => String(value || "").trim())
+        .forEach(([label, value]) => {
+          const row = document.createElement("div");
+          row.className = "record-card__row";
+
+          const labelElement = document.createElement("span");
+          labelElement.className = "record-card__label";
+          labelElement.textContent = label;
+
+          const valueElement = document.createElement("span");
+          valueElement.className = "record-card__value";
+          valueElement.textContent = value;
+
+          row.appendChild(labelElement);
+          row.appendChild(valueElement);
+          rows.appendChild(row);
+        });
+
+      card.appendChild(rows);
+      elements.recordsList.appendChild(card);
+    });
+  }
+
+  function normalizeRecordDate(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return "";
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+      return text;
+    }
+
+    const brMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brMatch) {
+      return `${brMatch[3]}-${brMatch[2]}-${brMatch[1]}`;
+    }
+
+    const parsed = new Date(text);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+
+    return formatKey(parsed);
+  }
+
   function populateEventEntryOptionLists() {
     setSelectOptions(elements.eventTypeInput, eventFieldOptions.eventTypes, "Selecione o tipo de evento");
     setSelectOptions(elements.delayMultipleInput, eventFieldOptions.delayMultiples, "Selecione o multiplo");
@@ -1077,7 +1226,6 @@
     toggleEventField(elements.substituteInput, !rule.hideSubstitute);
 
     setFieldDisabled(elements.substituteInput, rule.disableSubstitute);
-    setFieldDisabled(elements.payerInput, rule.autoPayer);
     setFieldDisabled(elements.creditorInput, rule.autoCreditor);
     setFieldDisabled(elements.amountToPayInput, rule.autoAmount);
 
