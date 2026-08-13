@@ -186,9 +186,9 @@ body.modal-open {
 .entry-sheet {
   position: relative;
   width: min(100%, 430px);
-  max-height: 82vh;
-  overflow-y: auto;
-  padding: 16px 14px 18px;
+  max-height: min(100dvh - 18px, 820px);
+  overflow: hidden;
+  padding: 12px 12px 14px;
   border-radius: 24px;
   background: linear-gradient(180deg, rgba(249, 244, 233, 0.98) 0%, rgba(237, 227, 207, 0.98) 100%);
   box-shadow: 0 18px 36px rgba(8, 18, 31, 0.24);
@@ -248,7 +248,7 @@ body.modal-open {
 
 .entry-sheet h2 {
   margin: 4px 0 0;
-  font-size: 1.08rem;
+  font-size: 0.98rem;
   line-height: 1.15;
 }
 
@@ -263,14 +263,14 @@ body.modal-open {
 .entry-form {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
-  margin-top: 8px;
+  gap: 7px;
+  margin-top: 6px;
 }
 
 .entry-actions {
   display: grid;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .entry-status {
@@ -312,22 +312,24 @@ body.modal-open {
 
 .entry-field {
   display: grid;
-  gap: 5px;
+  gap: 4px;
 }
 
 .entry-field span {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 800;
   color: rgba(20, 50, 84, 0.8);
   text-transform: uppercase;
 }
 
 .entry-field input,
+.entry-field select,
 .entry-field textarea {
   width: 100%;
   border: 1px solid rgba(13, 50, 87, 0.12);
   border-radius: 14px;
-  padding: 10px 12px;
+  min-height: 38px;
+  padding: 8px 10px;
   background: rgba(255, 255, 255, 0.82);
   font: inherit;
   color: var(--ink);
@@ -335,11 +337,12 @@ body.modal-open {
 }
 
 .entry-field textarea {
-  resize: vertical;
-  min-height: 104px;
+  resize: none;
+  min-height: 74px;
 }
 
 .entry-field input:focus,
+.entry-field select:focus,
 .entry-field textarea:focus {
   outline: 2px solid rgba(24, 183, 183, 0.24);
   border-color: rgba(24, 183, 183, 0.56);
@@ -1388,6 +1391,49 @@ button:hover,
 
   .events-frame {
     min-height: 66vh;
+  }
+
+  .entry-modal {
+    padding: 8px;
+  }
+
+  .entry-sheet,
+  .choice-sheet {
+    width: min(100%, 420px);
+    max-height: min(100dvh - 10px, 760px);
+    padding: 10px 10px 12px;
+    border-radius: 20px;
+  }
+
+  .entry-sheet h2 {
+    font-size: 0.92rem;
+  }
+
+  .entry-form {
+    gap: 6px;
+    margin-top: 5px;
+  }
+
+  .entry-field span {
+    font-size: 0.52rem;
+  }
+
+  .entry-field input,
+  .entry-field select,
+  .entry-field textarea {
+    min-height: 36px;
+    padding: 7px 9px;
+    font-size: 0.68rem;
+  }
+
+  .entry-field textarea {
+    min-height: 68px;
+  }
+
+  .entry-submit-button {
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 0.66rem;
   }
 
 }

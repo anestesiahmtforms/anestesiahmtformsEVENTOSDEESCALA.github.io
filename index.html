@@ -96,7 +96,7 @@
         </section>
       </section>
 
-      <section class="panel-card entry-card">
+      <section class="panel-card entry-card hidden">
         <div class="card-header">
           <div>
             <p class="card-title">Lancamento do evento</p>
@@ -135,7 +135,7 @@
 
         <label class="entry-field" for="eventTypeInput">
           <span>Tipo de Evento</span>
-          <input id="eventTypeInput" name="eventType" type="text" placeholder="Informe o tipo de evento">
+          <select id="eventTypeInput" name="eventType"></select>
         </label>
 
         <label class="entry-field" for="eventDescriptionInput">
@@ -145,27 +145,27 @@
 
         <label class="entry-field" for="delayMultipleInput">
           <span>Multiplo do atraso</span>
-          <input id="delayMultipleInput" name="delayMultiple" type="number" step="0.01" min="0" placeholder="0,00">
+          <select id="delayMultipleInput" name="delayMultiple"></select>
         </label>
 
         <label class="entry-field" for="substituteInput">
           <span>SUBSTITUTO</span>
-          <input id="substituteInput" name="substitute" type="text" placeholder="Nome do substituto">
+          <select id="substituteInput" name="substitute"></select>
         </label>
 
         <label class="entry-field" for="shiftInput">
           <span>TURNO</span>
-          <input id="shiftInput" name="shift" type="text" placeholder="Ex.: Manha, Tarde, Noite">
+          <select id="shiftInput" name="shift"></select>
         </label>
 
         <label class="entry-field" for="payerInput">
           <span>PAGADOR</span>
-          <input id="payerInput" name="payer" type="text" placeholder="Informe o pagador">
+          <select id="payerInput" name="payer"></select>
         </label>
 
         <label class="entry-field" for="creditorInput">
           <span>CREDOR</span>
-          <input id="creditorInput" name="creditor" type="text" placeholder="Informe o credor">
+          <select id="creditorInput" name="creditor"></select>
         </label>
 
         <label class="entry-field" for="amountToPayInput">

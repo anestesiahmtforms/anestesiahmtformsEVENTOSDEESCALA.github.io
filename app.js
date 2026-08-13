@@ -47,6 +47,8 @@
   const pendingSharedUpdates = new Map();
   let memberDirectory = buildFallbackMemberDirectory();
   let dcMemberOptions = buildFallbackDcOptions();
+  let eventFieldOptions = buildFallbackEventFieldOptions();
+  let eventTypeDefaults = buildFallbackEventTypeDefaults();
   let siglaChoiceResolver = null;
 
   const elements = {
@@ -106,6 +108,7 @@
 
   applyScheduleData(data);
   elements.dateInput.value = clampKey(todayKey);
+  populateEventEntryOptionLists();
   hydrateMemberDirectory().catch(() => {});
   hydrateSharedSiglaState().then(() => render(elements.dateInput.value)).catch(() => {});
 
@@ -147,6 +150,10 @@
 
   if (elements.eventEntryForm) {
     elements.eventEntryForm.addEventListener("submit", onEventEntrySubmit);
+  }
+
+  if (elements.eventTypeInput) {
+    elements.eventTypeInput.addEventListener("change", applyEventTypeDefaults);
   }
 
   if (elements.installButton) {
@@ -917,6 +924,15 @@
       const rows = await fetchEventListsRows();
       const nextDirectory = new Map();
       const nextDcOptions = [];
+      const nextFieldOptions = {
+        eventTypes: [],
+        delayMultiples: [],
+        substitutes: [],
+        shifts: [],
+        payers: [],
+        creditors: []
+      };
+      const nextEventTypeDefaults = new Map();
 
       rows.forEach((row) => {
         const devedorEntry = parseSiglaNameEntry(row[1]);
@@ -928,6 +944,31 @@
         if (dcEntry && !nextDcOptions.some((option) => option.sigla === dcEntry.sigla)) {
           nextDcOptions.push(dcEntry);
         }
+
+        pushUniqueOption(nextFieldOptions.eventTypes, row[0]);
+        pushUniqueOption(nextFieldOptions.delayMultiples, row[4]);
+        pushUniqueOption(nextFieldOptions.shifts, row[3]);
+        pushUniqueOption(nextFieldOptions.payers, row[1]);
+        pushUniqueOption(nextFieldOptions.creditors, row[2]);
+
+        const devedorName = extractDisplayName(row[1]);
+        const creditorName = extractDisplayName(row[2]);
+        if (devedorName && devedorName !== "CAIXA DA EQUIPE") {
+          pushUniqueOption(nextFieldOptions.substitutes, devedorName);
+        }
+        if (creditorName && creditorName !== "CAIXA DA EQUIPE") {
+          pushUniqueOption(nextFieldOptions.substitutes, creditorName);
+        }
+
+        const eventType = String(row[0] || "").trim();
+        if (eventType) {
+          nextEventTypeDefaults.set(eventType, {
+            delayMultiple: String(row[4] || "").trim(),
+            shift: String(row[3] || "").trim(),
+            payer: String(row[1] || "").trim(),
+            creditor: String(row[2] || "").trim()
+          });
+        }
       });
 
       if (nextDirectory.size) {
@@ -937,8 +978,74 @@
       if (nextDcOptions.length) {
         dcMemberOptions = nextDcOptions;
       }
+
+      if (nextFieldOptions.eventTypes.length) {
+        eventFieldOptions = nextFieldOptions;
+        populateEventEntryOptionLists();
+      }
+
+      if (nextEventTypeDefaults.size) {
+        eventTypeDefaults = nextEventTypeDefaults;
+      }
     } catch (error) {
       // Keep the built-in directory when the list sheet is temporarily unavailable.
+    }
+  }
+
+  function populateEventEntryOptionLists() {
+    setSelectOptions(elements.eventTypeInput, eventFieldOptions.eventTypes, "Selecione o tipo de evento");
+    setSelectOptions(elements.delayMultipleInput, eventFieldOptions.delayMultiples, "Selecione o multiplo");
+    setSelectOptions(elements.substituteInput, eventFieldOptions.substitutes, "Selecione o substituto");
+    setSelectOptions(elements.shiftInput, eventFieldOptions.shifts, "Selecione o turno");
+    setSelectOptions(elements.payerInput, eventFieldOptions.payers, "Selecione o pagador");
+    setSelectOptions(elements.creditorInput, eventFieldOptions.creditors, "Selecione o credor");
+  }
+
+  function setSelectOptions(select, options, placeholder) {
+    if (!select) {
+      return;
+    }
+
+    const currentValue = String(select.value || "").trim();
+    select.innerHTML = "";
+
+    const placeholderOption = document.createElement("option");
+    placeholderOption.value = "";
+    placeholderOption.textContent = placeholder;
+    placeholderOption.selected = !currentValue;
+    select.appendChild(placeholderOption);
+
+    options.forEach((optionValue) => {
+      const option = document.createElement("option");
+      option.value = optionValue;
+      option.textContent = optionValue;
+      option.selected = currentValue === optionValue;
+      select.appendChild(option);
+    });
+  }
+
+  function applyEventTypeDefaults() {
+    const eventType = String(elements.eventTypeInput?.value || "").trim();
+    if (!eventType || !eventTypeDefaults.has(eventType)) {
+      return;
+    }
+
+    const defaults = eventTypeDefaults.get(eventType);
+
+    if (elements.delayMultipleInput && defaults.delayMultiple) {
+      elements.delayMultipleInput.value = defaults.delayMultiple;
+    }
+
+    if (elements.shiftInput && defaults.shift) {
+      elements.shiftInput.value = defaults.shift;
+    }
+
+    if (elements.payerInput && defaults.payer) {
+      elements.payerInput.value = defaults.payer;
+    }
+
+    if (elements.creditorInput && defaults.creditor) {
+      elements.creditorInput.value = defaults.creditor;
     }
   }
 
@@ -1063,6 +1170,101 @@
     ]
       .map((value) => parseSiglaNameEntry(value))
       .filter(Boolean);
+  }
+
+  function buildFallbackEventFieldOptions() {
+    return {
+      eventTypes: ["Pessoal", "Ferias", "ATRASO", "Suporte", "Gestao", "Congresso", "Saude", "Ausencia", "Outros"],
+      delayMultiples: ["0", "1", "2", "3", "4", "5", "6"],
+      substitutes: [
+        "Fernando Astrogildo",
+        "Bernardo Guimaraes",
+        "Lucas Marques",
+        "Carolina Valadares",
+        "Jessica Karine",
+        "Bruna Candida",
+        "Adelson Jose de Macedo",
+        "Adriano Neves de Almeida",
+        "Alexandre de Castro Morais",
+        "Barbara Ribeiro Coutinho Leduc",
+        "Carlos Humberto Barbosa Ganem",
+        "Crelio Viana",
+        "Deiler Celio Jeunon",
+        "Dener Augusto Diniz",
+        "Flavio Maciel Fonseca",
+        "Francisco Tadeu da Mota Albuquerque",
+        "Guilherme Vieira Cunha",
+        "Gustavo Prosperi Bicalho",
+        "Igor Fagundes Vieira",
+        "Jayme Bueno Castilho",
+        "Leonardo Alves Araujo",
+        "Leonardo Carvalho Figueiredo",
+        "Leonardo Diniz Correa Pinto",
+        "Lucas Cardoso de Andrade",
+        "Lucia Helena Jacomett",
+        "Luciano Costa Ferreira",
+        "Luiz Antonio Carneiro Silva",
+        "Luiz Otavio Fernandes Andrade",
+        "Marcelo Giovannoni Assis",
+        "Marcio Henrique Mendes",
+        "Paulo Renato Andrade Silva",
+        "Rafael Augusto Carneiro Rezende",
+        "Ricardo Lucas da Mota Albuquerque",
+        "Rodrigo Capuano de Rezende Carneiro",
+        "Rodrigo de Lima e Souza",
+        "Rubens Claudio Pinheiro",
+        "Wendell Valadares Campos Pereira"
+      ],
+      shifts: ["Manha", "Tarde", "Integral"],
+      payers: [
+        "CAIXA DA EQUIPE",
+        "AD - Adelson Jose de Macedo",
+        "AA - Adriano Neves de Almeida",
+        "AL - Alexandre de Castro Morais",
+        "BA - Barbara Ribeiro Coutinho Leduc",
+        "CH - Carlos Humberto Barbosa Ganem",
+        "CR - Crelio Viana"
+      ],
+      creditors: [
+        "Fernando Astrogildo",
+        "Bernardo Guimaraes",
+        "Lucas Marques",
+        "Carolina Valadares",
+        "Jessica Karine",
+        "Bruna Candida",
+        "CAIXA DA EQUIPE"
+      ]
+    };
+  }
+
+  function buildFallbackEventTypeDefaults() {
+    return new Map([
+      ["Pessoal", { delayMultiple: "0", shift: "Manha", payer: "CAIXA DA EQUIPE", creditor: "Fernando Astrogildo" }],
+      ["Ferias", { delayMultiple: "1", shift: "Tarde", payer: "AD - Adelson Jose de Macedo", creditor: "Bernardo Guimaraes" }],
+      ["ATRASO", { delayMultiple: "2", shift: "Integral", payer: "AA - Adriano Neves de Almeida", creditor: "Lucas Marques" }],
+      ["Suporte", { delayMultiple: "3", shift: "", payer: "AL - Alexandre de Castro Morais", creditor: "Carolina Valadares" }],
+      ["Gestao", { delayMultiple: "4", shift: "", payer: "BA - Barbara Ribeiro Coutinho Leduc", creditor: "Jessica Karine" }],
+      ["Congresso", { delayMultiple: "5", shift: "", payer: "CH - Carlos Humberto Barbosa Ganem", creditor: "Bruna Candida" }],
+      ["Saude", { delayMultiple: "6", shift: "", payer: "CR - Crelio Viana", creditor: "CAIXA DA EQUIPE" }]
+    ]);
+  }
+
+  function pushUniqueOption(list, value) {
+    const text = String(value || "").trim();
+    if (!text || list.includes(text)) {
+      return;
+    }
+
+    list.push(text);
+  }
+
+  function extractDisplayName(value) {
+    const entry = parseSiglaNameEntry(value);
+    if (entry) {
+      return entry.name;
+    }
+
+    return String(value || "").trim();
   }
 
   function renderVacationLabel() {
