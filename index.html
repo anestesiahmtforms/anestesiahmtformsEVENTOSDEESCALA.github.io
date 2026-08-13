@@ -122,7 +122,7 @@
         <button id="closeEventEntryModal" class="entry-sheet__close" type="button" aria-label="Fechar lancamento do evento">Fechar</button>
       </div>
 
-      <form class="entry-form" autocomplete="on">
+      <form id="eventEntryForm" class="entry-form" autocomplete="on">
         <label class="entry-field" for="eventDateInput">
           <span>Data do Evento</span>
           <input id="eventDateInput" name="eventDate" type="date">
@@ -177,6 +177,11 @@
           <span>Origem</span>
           <input id="originInput" name="origin" type="text" value="PWA Eventos de escala" placeholder="Informe a origem">
         </label>
+
+        <div class="entry-actions">
+          <p id="eventEntryStatus" class="entry-status hidden" aria-live="polite"></p>
+          <button id="submitEventEntryButton" class="entry-submit-button" type="submit">Salvar na planilha</button>
+        </div>
       </form>
     </section>
   </div>

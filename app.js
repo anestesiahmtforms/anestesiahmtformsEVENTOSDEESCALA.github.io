@@ -23,6 +23,10 @@
   ];
   const vacationSheetTitle = "FERIAS 2026";
   const syncConfig = window.SAHMT_SYNC_CONFIG || {};
+  const eventEntryConfig = {
+    endpointUrl: "https://script.google.com/macros/s/AKfycbx5qHJcAWk0dVGEvd9xnxeW6t7WgLE4nuDw8_pWRb26lh0KCUK4kEGoj4KzKGELenXZ/exec",
+    requestTimeoutMs: 15000
+  };
   const siglaStateStorageKey = "sahmt-sigla-checks-v1";
   const clientIdStorageKey = "sahmt-client-id-v1";
   const sharedStateEndpoint = normalizeEndpoint(syncConfig.endpoint);
@@ -43,10 +47,23 @@
   const elements = {
     dateInput: document.getElementById("dateInput"),
     eventDateInput: document.getElementById("eventDateInput"),
+    eventEntryForm: document.getElementById("eventEntryForm"),
     openEventEntryModal: document.getElementById("openEventEntryModal"),
     eventEntryModal: document.getElementById("eventEntryModal"),
     eventEntryBackdrop: document.getElementById("eventEntryBackdrop"),
     closeEventEntryModal: document.getElementById("closeEventEntryModal"),
+    submitEventEntryButton: document.getElementById("submitEventEntryButton"),
+    eventEntryStatus: document.getElementById("eventEntryStatus"),
+    memberStatusInput: document.getElementById("memberStatusInput"),
+    eventTypeInput: document.getElementById("eventTypeInput"),
+    eventDescriptionInput: document.getElementById("eventDescriptionInput"),
+    delayMultipleInput: document.getElementById("delayMultipleInput"),
+    substituteInput: document.getElementById("substituteInput"),
+    shiftInput: document.getElementById("shiftInput"),
+    payerInput: document.getElementById("payerInput"),
+    creditorInput: document.getElementById("creditorInput"),
+    amountToPayInput: document.getElementById("amountToPayInput"),
+    originInput: document.getElementById("originInput"),
     prevButton: document.getElementById("prevButton"),
     todayButton: document.getElementById("todayButton"),
     nextButton: document.getElementById("nextButton"),
@@ -106,6 +123,10 @@
 
   if (elements.eventEntryBackdrop) {
     elements.eventEntryBackdrop.addEventListener("click", closeEventEntryModal);
+  }
+
+  if (elements.eventEntryForm) {
+    elements.eventEntryForm.addEventListener("submit", onEventEntrySubmit);
   }
 
   if (elements.installButton) {
@@ -618,6 +639,7 @@
       return;
     }
 
+    clearEventEntryStatus();
     elements.eventEntryModal.classList.remove("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
@@ -631,6 +653,137 @@
     elements.eventEntryModal.classList.add("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+  }
+
+  async function onEventEntrySubmit(event) {
+    event.preventDefault();
+
+    if (!elements.eventEntryForm?.reportValidity()) {
+      return;
+    }
+
+    const payload = buildEventEntryPayload();
+    setEventEntrySubmitting(true);
+    setEventEntryStatus("Salvando dados na planilha...", "");
+
+    try {
+      await postEventEntryPayload(payload);
+      resetEventEntryForm(payload.dataDoEvento);
+      setEventEntryStatus("Evento salvo com sucesso na planilha.", "success");
+    } catch (error) {
+      setEventEntryStatus("Nao foi possivel sincronizar agora. Confira o endpoint e tente novamente.", "error");
+    } finally {
+      setEventEntrySubmitting(false);
+    }
+  }
+
+  function buildEventEntryPayload() {
+    const eventDate = String(elements.eventDateInput?.value || "").trim();
+    const memberStatus = String(elements.memberStatusInput?.value || "").trim();
+    const eventType = String(elements.eventTypeInput?.value || "").trim();
+    const eventDescription = String(elements.eventDescriptionInput?.value || "").trim();
+    const delayMultiple = String(elements.delayMultipleInput?.value || "").trim();
+    const substitute = String(elements.substituteInput?.value || "").trim();
+    const shift = String(elements.shiftInput?.value || "").trim();
+    const payer = String(elements.payerInput?.value || "").trim();
+    const creditor = String(elements.creditorInput?.value || "").trim();
+    const amountToPay = String(elements.amountToPayInput?.value || "").trim();
+    const origin = String(elements.originInput?.value || "PWA Eventos de escala").trim() || "PWA Eventos de escala";
+    const createdAtIso = new Date().toISOString();
+
+    return {
+      data: eventDate,
+      dataDoEvento: eventDate,
+      ausente: memberStatus,
+      membroAusenteAtrasado: memberStatus,
+      evento: eventType,
+      tipoDeEvento: eventType,
+      eventoDescricao: eventDescription,
+      descricaoDoEvento: eventDescription,
+      atrasoTempo: delayMultiple,
+      multiploDoAtraso: delayMultiple,
+      presente: substitute,
+      membroSubstituto: substitute,
+      turno: shift,
+      devedor: payer,
+      pagador: payer,
+      responsavelPeloOnus: payer,
+      credor,
+      resultadoCredor: creditor,
+      valorPagar: amountToPay,
+      valorAPagar: amountToPay,
+      origem: origin,
+      criadoEm: createdAtIso,
+      criadoEmIso: createdAtIso
+    };
+  }
+
+  async function postEventEntryPayload(payload) {
+    if (!eventEntryConfig.endpointUrl) {
+      throw new Error("ENDPOINT_MISSING");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), eventEntryConfig.requestTimeoutMs || 15000);
+
+    try {
+      const response = await fetch(eventEntryConfig.endpointUrl, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal
+      });
+
+      const rawText = await response.text().catch(() => "");
+      const data = rawText ? JSON.parse(rawText) : {};
+
+      if (!response.ok || data.ok === false) {
+        throw new Error(data.message || "REQUEST_FAILED");
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
+  function resetEventEntryForm(dateKey) {
+    if (!elements.eventEntryForm) {
+      return;
+    }
+
+    elements.eventEntryForm.reset();
+
+    if (elements.eventDateInput) {
+      elements.eventDateInput.value = dateKey || elements.dateInput?.value || todayKey;
+    }
+
+    if (elements.originInput) {
+      elements.originInput.value = "PWA Eventos de escala";
+    }
+  }
+
+  function setEventEntrySubmitting(isSubmitting) {
+    if (elements.submitEventEntryButton) {
+      elements.submitEventEntryButton.disabled = isSubmitting;
+      elements.submitEventEntryButton.textContent = isSubmitting ? "Salvando..." : "Salvar na planilha";
+    }
+  }
+
+  function clearEventEntryStatus() {
+    setEventEntryStatus("", "");
+  }
+
+  function setEventEntryStatus(message, tone) {
+    if (!elements.eventEntryStatus) {
+      return;
+    }
+
+    elements.eventEntryStatus.textContent = message;
+    elements.eventEntryStatus.classList.toggle("hidden", !message);
+    elements.eventEntryStatus.classList.toggle("is-error", tone === "error");
+    elements.eventEntryStatus.classList.toggle("is-success", tone === "success");
   }
 
   function renderVacationLabel() {
