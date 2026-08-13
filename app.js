@@ -22,6 +22,8 @@
     ["DOMINGO 2026", "Domingo"]
   ];
   const vacationSheetTitle = "FERIAS 2026";
+  const eventListsSpreadsheetId = "1oMLWFUWh8K2MSFfqbrVlHICeM9S4ysfya3bvvfEplH0";
+  const eventListsSheetTitle = "Listas";
   const syncConfig = window.SAHMT_SYNC_CONFIG || {};
   const eventEntryConfig = {
     endpointUrl: "https://script.google.com/macros/s/AKfycbx5qHJcAWk0dVGEvd9xnxeW6t7WgLE4nuDw8_pWRb26lh0KCUK4kEGoj4KzKGELenXZ/exec",
@@ -43,6 +45,9 @@
   let sharedStateHash = serializeSiglaState(siglaCheckState);
   let sharedStateTimer = null;
   const pendingSharedUpdates = new Map();
+  let memberDirectory = buildFallbackMemberDirectory();
+  let dcMemberOptions = buildFallbackDcOptions();
+  let siglaChoiceResolver = null;
 
   const elements = {
     dateInput: document.getElementById("dateInput"),
@@ -52,6 +57,12 @@
     eventEntryModal: document.getElementById("eventEntryModal"),
     eventEntryBackdrop: document.getElementById("eventEntryBackdrop"),
     closeEventEntryModal: document.getElementById("closeEventEntryModal"),
+    siglaChoiceModal: document.getElementById("siglaChoiceModal"),
+    siglaChoiceBackdrop: document.getElementById("siglaChoiceBackdrop"),
+    closeSiglaChoiceModal: document.getElementById("closeSiglaChoiceModal"),
+    siglaChoiceTitle: document.getElementById("siglaChoiceTitle"),
+    siglaChoiceDescription: document.getElementById("siglaChoiceDescription"),
+    siglaChoiceOptions: document.getElementById("siglaChoiceOptions"),
     submitEventEntryButton: document.getElementById("submitEventEntryButton"),
     eventEntryStatus: document.getElementById("eventEntryStatus"),
     memberStatusInput: document.getElementById("memberStatusInput"),
@@ -95,6 +106,7 @@
 
   applyScheduleData(data);
   elements.dateInput.value = clampKey(todayKey);
+  hydrateMemberDirectory().catch(() => {});
   hydrateSharedSiglaState().then(() => render(elements.dateInput.value)).catch(() => {});
 
   elements.dateInput.addEventListener("change", () => {
@@ -123,6 +135,14 @@
 
   if (elements.eventEntryBackdrop) {
     elements.eventEntryBackdrop.addEventListener("click", closeEventEntryModal);
+  }
+
+  if (elements.closeSiglaChoiceModal) {
+    elements.closeSiglaChoiceModal.addEventListener("click", () => closeSiglaChoiceModal(null));
+  }
+
+  if (elements.siglaChoiceBackdrop) {
+    elements.siglaChoiceBackdrop.addEventListener("click", () => closeSiglaChoiceModal(null));
   }
 
   if (elements.eventEntryForm) {
@@ -159,13 +179,17 @@
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
+      if (isSiglaChoiceModalOpen()) {
+        closeSiglaChoiceModal(null);
+        return;
+      }
       closeEventEntryModal();
     }
   });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260812-3", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260813-4", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -241,7 +265,7 @@
       token.type = "button";
       token.setAttribute("aria-label", `Mantenha pressionado por 3 segundos para marcar ou desmarcar a sigla ${sigla}.`);
       token.title = "Mantenha pressionado por 3 segundos para destacar.";
-      bindSiglaInteractions(token, sigla, dateKey);
+      bindSiglaInteractions(token, sigla, weekdayLabel, dateKey);
 
       const dcVacationSiglas = getDcVacationSiglas(sigla, vacationSiglas, weekdayLabel);
       appendSiglaDisplay(token, sigla, vacationSiglas, vacationOrder, showVacationPositions);
@@ -282,7 +306,7 @@
     });
   }
 
-  function bindSiglaInteractions(token, sigla, dateKey) {
+  function bindSiglaInteractions(token, sigla, weekdayLabel, dateKey) {
     const holdDurationMs = 3000;
     let holdTimer = null;
     let holdCompleted = false;
@@ -317,6 +341,14 @@
 
     token.addEventListener("pointercancel", clearHold);
     token.addEventListener("lostpointercapture", clearHold);
+    token.addEventListener("click", async () => {
+      if (holdCompleted) {
+        holdCompleted = false;
+        return;
+      }
+
+      await handleSiglaClick(sigla, weekdayLabel, dateKey);
+    });
     token.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -634,6 +666,30 @@
     return trimmed || "";
   }
 
+  async function handleSiglaClick(sigla, weekdayLabel, dateKey) {
+    const choices = getMemberChoicesForSigla(sigla, weekdayLabel);
+
+    if (!choices.length) {
+      prefillMemberStatus(sigla, dateKey);
+      openEventEntryModal();
+      return;
+    }
+
+    if (choices.length === 1) {
+      prefillMemberStatus(choices[0].name, dateKey);
+      openEventEntryModal();
+      return;
+    }
+
+    const selectedChoice = await openSiglaChoiceModal(sigla, choices);
+    if (!selectedChoice) {
+      return;
+    }
+
+    prefillMemberStatus(selectedChoice.name, dateKey);
+    openEventEntryModal();
+  }
+
   function openEventEntryModal() {
     if (!elements.eventEntryModal) {
       return;
@@ -653,6 +709,76 @@
     elements.eventEntryModal.classList.add("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+  }
+
+  function prefillMemberStatus(memberName, dateKey) {
+    if (elements.eventDateInput) {
+      elements.eventDateInput.value = dateKey || elements.dateInput?.value || todayKey;
+    }
+
+    if (elements.memberStatusInput) {
+      elements.memberStatusInput.value = memberName || "";
+    }
+  }
+
+  function openSiglaChoiceModal(sigla, choices) {
+    if (!elements.siglaChoiceModal || !elements.siglaChoiceOptions) {
+      return Promise.resolve(null);
+    }
+
+    if (elements.siglaChoiceTitle) {
+      elements.siglaChoiceTitle.textContent = `Escolha o membro de ${sigla}`;
+    }
+
+    if (elements.siglaChoiceDescription) {
+      elements.siglaChoiceDescription.textContent = "Selecione o nome para preencher automaticamente em MEMBRO (AUSENTE/ATRASADO).";
+    }
+
+    elements.siglaChoiceOptions.innerHTML = "";
+
+    choices.forEach((choice) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "choice-sheet__option";
+      button.textContent = choice.label;
+      button.addEventListener("click", () => closeSiglaChoiceModal(choice));
+      elements.siglaChoiceOptions.appendChild(button);
+    });
+
+    elements.siglaChoiceModal.classList.remove("hidden");
+    elements.siglaChoiceModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+
+    return new Promise((resolve) => {
+      siglaChoiceResolver = resolve;
+    });
+  }
+
+  function closeSiglaChoiceModal(selectedChoice) {
+    if (!elements.siglaChoiceModal) {
+      return;
+    }
+
+    elements.siglaChoiceModal.classList.add("hidden");
+    elements.siglaChoiceModal.setAttribute("aria-hidden", "true");
+
+    if (!isEventEntryModalOpen()) {
+      document.body.classList.remove("modal-open");
+    }
+
+    if (typeof siglaChoiceResolver === "function") {
+      const resolver = siglaChoiceResolver;
+      siglaChoiceResolver = null;
+      resolver(selectedChoice || null);
+    }
+  }
+
+  function isEventEntryModalOpen() {
+    return Boolean(elements.eventEntryModal && !elements.eventEntryModal.classList.contains("hidden"));
+  }
+
+  function isSiglaChoiceModalOpen() {
+    return Boolean(elements.siglaChoiceModal && !elements.siglaChoiceModal.classList.contains("hidden"));
   }
 
   async function onEventEntrySubmit(event) {
@@ -784,6 +910,159 @@
     elements.eventEntryStatus.classList.toggle("hidden", !message);
     elements.eventEntryStatus.classList.toggle("is-error", tone === "error");
     elements.eventEntryStatus.classList.toggle("is-success", tone === "success");
+  }
+
+  async function hydrateMemberDirectory() {
+    try {
+      const rows = await fetchEventListsRows();
+      const nextDirectory = new Map();
+      const nextDcOptions = [];
+
+      rows.forEach((row) => {
+        const devedorEntry = parseSiglaNameEntry(row[1]);
+        if (devedorEntry) {
+          nextDirectory.set(devedorEntry.sigla, devedorEntry);
+        }
+
+        const dcEntry = parseSiglaNameEntry(row[5]);
+        if (dcEntry && !nextDcOptions.some((option) => option.sigla === dcEntry.sigla)) {
+          nextDcOptions.push(dcEntry);
+        }
+      });
+
+      if (nextDirectory.size) {
+        memberDirectory = nextDirectory;
+      }
+
+      if (nextDcOptions.length) {
+        dcMemberOptions = nextDcOptions;
+      }
+    } catch (error) {
+      // Keep the built-in directory when the list sheet is temporarily unavailable.
+    }
+  }
+
+  async function fetchEventListsRows() {
+    const url = new URL(`https://docs.google.com/spreadsheets/d/${eventListsSpreadsheetId}/gviz/tq`);
+    url.searchParams.set("tqx", "out:csv");
+    url.searchParams.set("sheet", eventListsSheetTitle);
+    url.searchParams.set("range", "A2:F60");
+
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      mode: "cors",
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Falha ao carregar aba ${eventListsSheetTitle}: ${response.status}`);
+    }
+
+    const csvText = await response.text();
+    return parseCsvRows(csvText).filter((row) => row.some((cell) => String(cell || "").trim()));
+  }
+
+  function getMemberChoicesForSigla(sigla, weekdayLabel) {
+    const normalizedSigla = String(sigla || "").trim().toUpperCase();
+    if (!normalizedSigla) {
+      return [];
+    }
+
+    if (normalizedSigla === "DC") {
+      const weekdayAliases = new Set((dcAliasesByWeekday.get(weekdayLabel) || []).map((value) => String(value || "").toUpperCase()));
+      const weekdayOptions = dcMemberOptions.filter((option) => weekdayAliases.has(option.sigla));
+      return weekdayOptions.length ? weekdayOptions : dcMemberOptions;
+    }
+
+    const rawParts = normalizedSigla.split(/[/-]/).map((value) => value.trim()).filter(Boolean);
+    const choices = rawParts
+      .map((part) => memberDirectory.get(part))
+      .filter(Boolean);
+
+    return dedupeMemberChoices(choices);
+  }
+
+  function dedupeMemberChoices(choices) {
+    const seen = new Set();
+    return choices.filter((choice) => {
+      const key = `${choice.sigla}::${choice.name}`;
+      if (seen.has(key)) {
+        return false;
+      }
+
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function parseSiglaNameEntry(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return null;
+    }
+
+    const match = text.match(/^([A-Z0-9]{2})\s*-\s*(.+)$/);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      sigla: match[1].trim().toUpperCase(),
+      name: match[2].trim(),
+      label: text
+    };
+  }
+
+  function buildFallbackMemberDirectory() {
+    return new Map(
+      [
+        "AA - Adriano Neves de Almeida",
+        "AD - Adelson Jose de Macedo",
+        "AL - Alexandre de Castro Morais",
+        "BA - Barbara Ribeiro Coutinho Leduc",
+        "CH - Carlos Humberto Barbosa Ganem",
+        "CR - Crelio Viana",
+        "DE - Deiler Celio Jeunon",
+        "DN - Dener Augusto Diniz",
+        "FL - Flavio Maciel Fonseca",
+        "FR - Francisco Tadeu da Mota Albuquerque",
+        "GB - Gustavo Prosperi Bicalho",
+        "GU - Guilherme Vieira Cunha",
+        "IG - Igor Fagundes Vieira",
+        "JA - Jayme Bueno Castilho",
+        "L2 - Leonardo Alves Araujo",
+        "LA - Luiz Antonio Carneiro Silva",
+        "LC - Lucas Cardoso de Andrade",
+        "LD - Leonardo Diniz Correa Pinto",
+        "LE - Leonardo Carvalho Figueiredo",
+        "LH - Lucia Helena Jacomett",
+        "LO - Luiz Otavio Fernandes Andrade",
+        "LU - Luciano Costa Ferreira",
+        "MA - Marcelo Giovannoni Assis",
+        "MH - Marcio Henrique Mendes",
+        "PR - Paulo Renato Andrade Silva",
+        "RA - Rafael Augusto Carneiro Rezende",
+        "RC - Rodrigo Capuano de Rezende Carneiro",
+        "RL - Ricardo Lucas da Mota Albuquerque",
+        "RO - Rodrigo de Lima e Souza",
+        "RU - Rubens Claudio Pinheiro",
+        "WE - Wendell Valadares Campos Pereira"
+      ]
+        .map((value) => parseSiglaNameEntry(value))
+        .filter(Boolean)
+        .map((entry) => [entry.sigla, entry])
+    );
+  }
+
+  function buildFallbackDcOptions() {
+    return [
+      "AD - Adelson Jose de Macedo",
+      "CR - Crelio Viana",
+      "LH - Lucia Helena Jacomett",
+      "LA - Luiz Antonio Carneiro Silva"
+    ]
+      .map((value) => parseSiglaNameEntry(value))
+      .filter(Boolean);
   }
 
   function renderVacationLabel() {
