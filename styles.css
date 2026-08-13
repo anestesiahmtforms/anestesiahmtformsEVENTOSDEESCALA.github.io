@@ -156,19 +156,24 @@ body.modal-open {
 }
 
 .entry-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: flex-start;
   gap: 10px;
   margin-top: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
 }
 
 .entry-field {
+  flex: 0 0 220px;
   display: grid;
   gap: 5px;
 }
 
 .entry-field--full {
-  grid-column: 1 / -1;
+  flex-basis: 320px;
 }
 
 .entry-field span {
@@ -1231,11 +1236,7 @@ button:hover,
   }
 
   .entry-form {
-    grid-template-columns: 1fr;
-  }
-
-  .entry-field--full {
-    grid-column: auto;
+    gap: 8px;
   }
 
   .soft-button,
