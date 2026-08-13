@@ -153,8 +153,13 @@
   }
 
   if (elements.eventTypeInput) {
-    elements.eventTypeInput.addEventListener("change", applyEventTypeDefaults);
+    elements.eventTypeInput.addEventListener("change", updateEventEntryState);
   }
+
+  elements.memberStatusInput?.addEventListener("input", updateEventEntryState);
+  elements.substituteInput?.addEventListener("change", updateEventEntryState);
+  elements.shiftInput?.addEventListener("change", updateEventEntryState);
+  elements.delayMultipleInput?.addEventListener("change", updateEventEntryState);
 
   if (elements.installButton) {
     elements.installButton.addEventListener("click", async () => {
@@ -703,6 +708,7 @@
     }
 
     clearEventEntryStatus();
+    updateEventEntryState();
     elements.eventEntryModal.classList.remove("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "false");
     document.body.classList.add("modal-open");
@@ -726,6 +732,8 @@
     if (elements.memberStatusInput) {
       elements.memberStatusInput.value = memberName || "";
     }
+
+    updateEventEntryState();
   }
 
   function openSiglaChoiceModal(sigla, choices) {
@@ -887,6 +895,7 @@
     }
 
     elements.eventEntryForm.reset();
+    populateEventEntryOptionLists();
 
     if (elements.eventDateInput) {
       elements.eventDateInput.value = dateKey || elements.dateInput?.value || todayKey;
@@ -895,6 +904,8 @@
     if (elements.originInput) {
       elements.originInput.value = "PWA Eventos de escala";
     }
+
+    updateEventEntryState();
   }
 
   function setEventEntrySubmitting(isSubmitting) {
@@ -999,6 +1010,7 @@
     setSelectOptions(elements.shiftInput, eventFieldOptions.shifts, "Selecione o turno");
     setSelectOptions(elements.payerInput, eventFieldOptions.payers, "Selecione o pagador");
     setSelectOptions(elements.creditorInput, eventFieldOptions.creditors, "Selecione o credor");
+    updateEventEntryState();
   }
 
   function setSelectOptions(select, options, placeholder) {
@@ -1047,6 +1059,210 @@
     if (elements.creditorInput && defaults.creditor) {
       elements.creditorInput.value = defaults.creditor;
     }
+  }
+
+  function updateEventEntryState() {
+    const eventType = String(elements.eventTypeInput?.value || "").trim();
+    const normalizedEventType = normalizeEventType(eventType);
+    const memberName = String(elements.memberStatusInput?.value || "").trim();
+    const substitute = String(elements.substituteInput?.value || "").trim();
+    const shift = String(elements.shiftInput?.value || "").trim();
+    const delayMultiple = Number.parseFloat(String(elements.delayMultipleInput?.value || "").replace(",", "."));
+    const rule = getEventEntryRule(normalizedEventType);
+
+    applyEventTypeDefaults();
+
+    toggleEventField(elements.eventDescriptionInput, rule.showDescription);
+    toggleEventField(elements.delayMultipleInput, rule.showDelayMultiple);
+    toggleEventField(elements.substituteInput, !rule.hideSubstitute);
+
+    setFieldDisabled(elements.substituteInput, rule.disableSubstitute);
+    setFieldDisabled(elements.payerInput, rule.autoPayer);
+    setFieldDisabled(elements.creditorInput, rule.autoCreditor);
+    setFieldDisabled(elements.amountToPayInput, rule.autoAmount);
+
+    if (rule.disableSubstitute && elements.substituteInput) {
+      elements.substituteInput.value = "";
+    }
+
+    if (!rule.showDescription && elements.eventDescriptionInput) {
+      elements.eventDescriptionInput.value = "";
+    }
+
+    if (!rule.showDelayMultiple && elements.delayMultipleInput) {
+      elements.delayMultipleInput.value = "";
+    }
+
+    if (elements.payerInput && rule.autoPayer) {
+      elements.payerInput.value = resolveEventEntryPayer(rule, memberName);
+    }
+
+    if (elements.creditorInput && rule.autoCreditor) {
+      elements.creditorInput.value = resolveEventEntryCreditor(rule, substitute);
+    }
+
+    if (elements.amountToPayInput && rule.autoAmount) {
+      const amount = resolveEventEntryAmount(rule, shift, Number.isFinite(delayMultiple) ? delayMultiple : 0);
+      elements.amountToPayInput.value = amount ? formatCurrencyInput(amount) : "";
+    }
+  }
+
+  function getEventEntryRule(normalizedEventType) {
+    if (normalizedEventType === "atraso") {
+      return {
+        showDescription: false,
+        showDelayMultiple: true,
+        hideSubstitute: true,
+        disableSubstitute: true,
+        autoPayer: true,
+        autoCreditor: true,
+        autoAmount: true,
+        payerMode: "member",
+        creditorMode: "team",
+        amountMode: "delay"
+      };
+    }
+
+    if (normalizedEventType === "suporte" || normalizedEventType === "gestao" || normalizedEventType === "congresso") {
+      return {
+        showDescription: false,
+        showDelayMultiple: false,
+        hideSubstitute: false,
+        disableSubstitute: false,
+        autoPayer: true,
+        autoCreditor: true,
+        autoAmount: false,
+        payerMode: "team",
+        creditorMode: "substitute",
+        amountMode: "manual"
+      };
+    }
+
+    if (normalizedEventType === "pessoal" || normalizedEventType === "ferias" || normalizedEventType === "saude") {
+      return {
+        showDescription: false,
+        showDelayMultiple: false,
+        hideSubstitute: false,
+        disableSubstitute: false,
+        autoPayer: true,
+        autoCreditor: true,
+        autoAmount: true,
+        payerMode: "member",
+        creditorMode: "substitute",
+        amountMode: "shift"
+      };
+    }
+
+    if (normalizedEventType === "ausencia" || normalizedEventType === "outros") {
+      return {
+        showDescription: true,
+        showDelayMultiple: false,
+        hideSubstitute: false,
+        disableSubstitute: false,
+        autoPayer: true,
+        autoCreditor: true,
+        autoAmount: false,
+        payerMode: "member",
+        creditorMode: "substitute",
+        amountMode: "manual"
+      };
+    }
+
+    return {
+      showDescription: false,
+      showDelayMultiple: false,
+      hideSubstitute: false,
+      disableSubstitute: false,
+      autoPayer: false,
+      autoCreditor: false,
+      autoAmount: false,
+      payerMode: "manual",
+      creditorMode: "manual",
+      amountMode: "manual"
+    };
+  }
+
+  function normalizeEventType(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function toggleEventField(control, shouldShow) {
+    const field = control?.closest(".entry-field");
+    if (!field) {
+      return;
+    }
+
+    field.classList.toggle("hidden", !shouldShow);
+  }
+
+  function setFieldDisabled(control, disabled) {
+    if (!control) {
+      return;
+    }
+
+    control.disabled = disabled;
+  }
+
+  function resolveEventEntryPayer(rule, memberName) {
+    if (rule.payerMode === "team") {
+      return "CAIXA DA EQUIPE";
+    }
+
+    if (rule.payerMode === "member") {
+      return memberName;
+    }
+
+    return String(elements.payerInput?.value || "").trim();
+  }
+
+  function resolveEventEntryCreditor(rule, substitute) {
+    if (rule.creditorMode === "team") {
+      return "CAIXA DA EQUIPE";
+    }
+
+    if (rule.creditorMode === "substitute") {
+      return substitute;
+    }
+
+    return String(elements.creditorInput?.value || "").trim();
+  }
+
+  function resolveEventEntryAmount(rule, shift, delayMultiple) {
+    if (rule.amountMode === "delay") {
+      return delayMultiple > 0 ? delayMultiple * 200 : 0;
+    }
+
+    if (rule.amountMode === "shift") {
+      const normalizedShift = normalizeShift(shift);
+      if (normalizedShift === "manha" || normalizedShift === "tarde") {
+        return 1000;
+      }
+
+      if (normalizedShift === "integral") {
+        return 2000;
+      }
+    }
+
+    return 0;
+  }
+
+  function normalizeShift(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function formatCurrencyInput(value) {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    }).format(value);
   }
 
   async function fetchEventListsRows() {
