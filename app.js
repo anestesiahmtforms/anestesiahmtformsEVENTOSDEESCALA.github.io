@@ -161,7 +161,10 @@
   });
 
   if (elements.openEventEntryModal) {
-    elements.openEventEntryModal.addEventListener("click", openEventEntryModal);
+    elements.openEventEntryModal.addEventListener("click", () => {
+      resetEventEntryForm(elements.dateInput?.value || todayKey);
+      openEventEntryModal();
+    });
   }
 
   if (elements.closeEventEntryModal) {
@@ -240,7 +243,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-13", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-14", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -807,12 +810,14 @@
     const choices = getMemberChoicesForSigla(sigla, weekdayLabel);
 
     if (!choices.length) {
+      resetEventEntryForm(dateKey);
       prefillMemberStatus(sigla, dateKey);
       openEventEntryModal();
       return;
     }
 
     if (choices.length === 1) {
+      resetEventEntryForm(dateKey);
       prefillMemberStatus(choices[0].name, dateKey);
       openEventEntryModal();
       return;
@@ -824,6 +829,7 @@
       return;
     }
 
+    resetEventEntryForm(dateKey);
     prefillMemberStatus(selectedChoice.name, dateKey);
     openEventEntryModal();
   }
@@ -1408,13 +1414,22 @@
         .forEach(([label, value]) => {
           const row = document.createElement("div");
           row.className = "record-card__row";
+          if (label === "Ultima modificacao") {
+            row.classList.add("record-card__row--history");
+          }
 
           const labelElement = document.createElement("span");
           labelElement.className = "record-card__label";
+          if (label === "Ultima modificacao") {
+            labelElement.classList.add("record-card__label--history");
+          }
           labelElement.textContent = label;
 
           const valueElement = document.createElement("span");
           valueElement.className = "record-card__value";
+          if (label === "Ultima modificacao") {
+            valueElement.classList.add("record-card__value--history");
+          }
           valueElement.textContent = value;
 
           row.appendChild(labelElement);

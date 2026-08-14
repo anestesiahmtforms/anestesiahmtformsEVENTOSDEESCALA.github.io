@@ -437,6 +437,11 @@ body.modal-open {
   background: rgba(255, 255, 255, 0.62);
 }
 
+.record-card__row--history {
+  background: rgba(255, 236, 193, 0.92);
+  border: 1px solid rgba(155, 91, 0, 0.18);
+}
+
 .record-card__label {
   flex: 0 0 118px;
   min-width: 0;
@@ -444,6 +449,10 @@ body.modal-open {
   font-weight: 900;
   color: rgba(20, 50, 84, 0.72);
   text-transform: uppercase;
+}
+
+.record-card__label--history {
+  color: #9b5b00;
 }
 
 .record-card__value {
@@ -455,6 +464,11 @@ body.modal-open {
   text-align: right;
   color: var(--ink);
   overflow-wrap: anywhere;
+}
+
+.record-card__value--history {
+  color: #8a3500;
+  font-weight: 800;
 }
 
 .card-header,
