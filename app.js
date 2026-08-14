@@ -270,7 +270,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-21", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-22", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1576,6 +1576,7 @@
 
       [
         ["Membro", record.membro],
+        ["Tipo de Evento", record.tipo],
         ["Descricao", record.descricao],
         ["Substituto", record.substituto],
         ["Turno", record.turno],
@@ -1782,7 +1783,7 @@
       head: [[
         "Data",
         "Membro",
-        "Evento",
+        "Tipo de Evento",
         "Descricao",
         "Substituto",
         "Turno",
@@ -1825,6 +1826,56 @@
       }
     });
 
+    const summaryRows = buildMonthlyCreditorSummaryRows(records);
+    if (summaryRows.length) {
+      const summaryStartY = (pdf.lastAutoTable?.finalY || 100) + 18;
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text("Resumo por credor e pagador", 24, summaryStartY);
+
+      pdf.autoTable({
+        startY: summaryStartY + 10,
+        head: [[
+          "Credor",
+          "Pagador",
+          "Datas",
+          "Total a receber"
+        ]],
+        body: summaryRows.map((row) => ([
+          row.credor,
+          row.pagador,
+          row.datas,
+          row.totalFormatado
+        ])),
+        theme: "grid",
+        styles: {
+          fontSize: 8,
+          cellPadding: 5,
+          lineColor: [220, 228, 238],
+          lineWidth: 0.5,
+          textColor: [20, 50, 84],
+          overflow: "linebreak"
+        },
+        headStyles: {
+          fillColor: [140, 85, 23],
+          textColor: [255, 255, 255],
+          fontStyle: "bold"
+        },
+        alternateRowStyles: {
+          fillColor: [252, 246, 236]
+        },
+        margin: {
+          left: 24,
+          right: 24,
+          bottom: 48
+        },
+        columnStyles: {
+          2: { cellWidth: 180 },
+          3: { halign: "right", cellWidth: 82 }
+        }
+      });
+    }
+
     const historyStartY = (pdf.lastAutoTable?.finalY || 100) + 18;
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(11);
@@ -1863,6 +1914,71 @@
       .replace(/:\s*"([^"]*)"\s*->\s*"([^"]*)"/g, ': $1 -> $2')
       .replace(/\s{2,}/g, " ")
       .trim();
+  }
+
+  function buildMonthlyCreditorSummaryRows(records) {
+    const grouped = new Map();
+
+    (records || []).forEach((record) => {
+      const creditor = String(record?.credor || "").trim();
+      const payer = String(record?.pagador || "").trim();
+      if (!creditor || !payer) {
+        return;
+      }
+
+      const groupKey = `${creditor}::${payer}`;
+      const entry = grouped.get(groupKey) || {
+        credor: creditor,
+        pagador: payer,
+        total: 0,
+        datas: []
+      };
+
+      entry.total += parseCurrencyValue(record?.valor);
+
+      const dateText = String(record?.dataDoEvento || "").trim();
+      if (dateText) {
+        entry.datas.push(dateText);
+      }
+
+      grouped.set(groupKey, entry);
+    });
+
+    return Array.from(grouped.values())
+      .map((entry) => ({
+        credor: entry.credor,
+        pagador: entry.pagador,
+        datas: dedupeValues(entry.datas).join(", "),
+        total: entry.total,
+        totalFormatado: formatCurrencyInput(entry.total)
+      }))
+      .filter((entry) => entry.total > 0)
+      .sort((left, right) => {
+        const creditorCompare = left.credor.localeCompare(right.credor, "pt-BR");
+        if (creditorCompare !== 0) {
+          return creditorCompare;
+        }
+
+        return left.pagador.localeCompare(right.pagador, "pt-BR");
+      });
+  }
+
+  function parseCurrencyValue(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return 0;
+    }
+
+    const normalized = text
+      .replace(/[R$\s]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function dedupeValues(values) {
+    return Array.from(new Set((values || []).map((value) => String(value || "").trim()).filter(Boolean)));
   }
 
   function normalizeRecordDate(value) {
@@ -2076,10 +2192,10 @@
         disableSubstitute: false,
         autoPayer: true,
         autoCreditor: true,
-        autoAmount: false,
+        autoAmount: true,
         payerMode: "team",
         creditorMode: "substitute",
-        amountMode: "manual"
+        amountMode: "shift"
       };
     }
 
