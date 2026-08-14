@@ -152,12 +152,22 @@ body.modal-open {
 }
 
 .records-card {
-  border-color: rgba(199, 154, 62, 0.28);
+  border-color: rgba(199, 154, 62, 0.34);
+  background:
+    linear-gradient(180deg, rgba(249, 244, 233, 0.98) 0%, rgba(240, 230, 210, 0.96) 100%);
+  box-shadow: 0 18px 36px rgba(103, 67, 15, 0.14);
 }
 
 .records-monthly-button {
-  margin-top: 10px;
-  background: linear-gradient(180deg, #7b4d18 0%, #b56404 100%);
+  margin-top: -2px;
+  padding: 14px 16px;
+  border-radius: 20px;
+  background:
+    linear-gradient(180deg, #8a5316 0%, #c67512 100%);
+  box-shadow: 0 16px 28px rgba(122, 77, 24, 0.24);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
 }
 
 .entry-card {
@@ -414,10 +424,56 @@ body.modal-open {
 }
 
 .records-banner {
-  padding: 8px;
+  padding: 12px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(255, 218, 145, 0.24), transparent 28%),
+    linear-gradient(180deg, rgba(255, 249, 239, 0.9) 0%, rgba(244, 235, 219, 0.88) 100%);
+  border: 1px solid rgba(199, 154, 62, 0.22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.records-hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 10px 12px 12px;
   border-radius: 18px;
-  background: rgba(248, 243, 232, 0.72);
-  border: 1px solid rgba(199, 154, 62, 0.2);
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(199, 154, 62, 0.18);
+}
+
+.records-hero__eyebrow,
+.records-hero__title,
+.records-hero__description {
+  margin: 0;
+}
+
+.records-hero__eyebrow {
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(129, 79, 12, 0.82);
+}
+
+.records-hero__title {
+  font-size: 1.08rem;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  color: #8c5517;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.records-hero__description {
+  max-width: 26ch;
+  font-size: 0.66rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: rgba(20, 50, 84, 0.74);
 }
 
 .records-list {
