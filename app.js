@@ -26,6 +26,10 @@
   const eventListsSheetTitle = "Listas";
   const recordsSheetTitle = "Registros";
   const syncConfig = window.SAHMT_SYNC_CONFIG || {};
+  // Endpoint operacional do envio de eventos.
+  // Referencia de codigo-fonte: tools/apps-script/SAHMT-eventos-registros.gs
+  // Implantacao ativa confirmada em 14/08/2026:
+  // https://script.google.com/macros/s/AKfycbx5qHJcAWk0dVGEvd9xnxeW6t7WgLE4nuDw8_pWRb26lh0KCUK4kEGoj4KzKGELenXZ/exec
   const eventEntryConfig = {
     endpointUrl: "https://script.google.com/macros/s/AKfycbx5qHJcAWk0dVGEvd9xnxeW6t7WgLE4nuDw8_pWRb26lh0KCUK4kEGoj4KzKGELenXZ/exec",
     requestTimeoutMs: 15000
