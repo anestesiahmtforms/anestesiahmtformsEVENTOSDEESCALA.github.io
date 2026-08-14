@@ -175,6 +175,10 @@
 
   if (elements.eventTypeInput) {
     elements.eventTypeInput.addEventListener("change", () => {
+      const normalizedEventType = normalizeEventType(elements.eventTypeInput.value);
+      if (normalizedEventType === "atraso" && elements.delayMultipleInput) {
+        elements.delayMultipleInput.value = "";
+      }
       applyEventTypeDefaults();
       updateEventEntryState();
     });
@@ -225,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-2", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-3", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -921,12 +925,15 @@
 
     try {
       const result = await postEventEntryPayload(payload);
+      const successMessage = `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`;
       commitActiveEventLaunch();
       resetEventEntryForm(payload.dataDoEvento);
-      setEventEntryStatus(
-        `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`,
-        "success"
-      );
+      hydrateEventRecords().catch(() => {});
+      setEventEntryStatus(successMessage, "success");
+      window.setTimeout(() => {
+        closeEventEntryModal();
+        window.alert(successMessage);
+      }, 180);
     } catch (error) {
       const detail = String(error?.message || "").trim();
       setEventEntryStatus(
@@ -1343,10 +1350,6 @@
     }
 
     const defaults = eventTypeDefaults.get(eventType);
-
-    if (elements.delayMultipleInput && defaults.delayMultiple) {
-      setSelectControlValue(elements.delayMultipleInput, defaults.delayMultiple);
-    }
 
     if (elements.shiftInput && defaults.shift) {
       setSelectControlValue(elements.shiftInput, defaults.shift);
