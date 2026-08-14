@@ -216,7 +216,6 @@
       if (normalizedEventType === "atraso" && elements.delayMultipleInput) {
         elements.delayMultipleInput.value = "";
       }
-      applyEventTypeDefaults();
       updateEventEntryState();
     });
   }
@@ -275,7 +274,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-23", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-24", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1129,6 +1128,7 @@
     activeEventRecordEdit = null;
     resetAutoFilledFieldLocks();
     populateEventEntryOptionLists();
+    clearNewEventEntryFields();
     syncEventEntryModeUi();
 
     if (elements.eventDateInput) {
@@ -1140,6 +1140,37 @@
     }
 
     updateEventEntryState();
+  }
+
+  function clearNewEventEntryFields() {
+    if (isEditingEventRecord()) {
+      return;
+    }
+
+    if (elements.eventTypeInput) {
+      setSelectControlValue(elements.eventTypeInput, "");
+    }
+    if (elements.eventDescriptionInput) {
+      elements.eventDescriptionInput.value = "";
+    }
+    if (elements.delayMultipleInput) {
+      setSelectControlValue(elements.delayMultipleInput, "");
+    }
+    if (elements.substituteInput) {
+      setSelectControlValue(elements.substituteInput, "");
+    }
+    if (elements.shiftInput) {
+      setSelectControlValue(elements.shiftInput, "");
+    }
+    if (elements.payerInput) {
+      setSelectControlValue(elements.payerInput, "");
+    }
+    if (elements.creditorInput) {
+      setSelectControlValue(elements.creditorInput, "");
+    }
+    if (elements.amountToPayInput) {
+      elements.amountToPayInput.value = "";
+    }
   }
 
   function validateEventEntryForm() {
@@ -2090,27 +2121,6 @@
     select.appendChild(container);
   }
 
-  function applyEventTypeDefaults() {
-    const eventType = String(elements.eventTypeInput?.value || "").trim();
-    if (!eventType || !eventTypeDefaults.has(eventType)) {
-      return;
-    }
-
-    const defaults = eventTypeDefaults.get(eventType);
-
-    if (elements.shiftInput && defaults.shift) {
-      setSelectControlValue(elements.shiftInput, defaults.shift);
-    }
-
-    if (elements.payerInput && defaults.payer) {
-      setSelectControlValue(elements.payerInput, defaults.payer);
-    }
-
-    if (elements.creditorInput && defaults.creditor) {
-      setSelectControlValue(elements.creditorInput, defaults.creditor);
-    }
-  }
-
   function updateEventEntryState() {
     const eventType = String(elements.eventTypeInput?.value || "").trim();
     const normalizedEventType = normalizeEventType(eventType);
@@ -2238,14 +2248,14 @@
       };
     }
 
-      return {
-        showDescription: false,
-        showDelayMultiple: false,
-        hideSubstitute: false,
-        showShift: true,
-        disableSubstitute: false,
-        autoPayer: false,
-        autoCreditor: false,
+    return {
+      showDescription: false,
+      showDelayMultiple: false,
+      hideSubstitute: false,
+      showShift: false,
+      disableSubstitute: false,
+      autoPayer: false,
+      autoCreditor: false,
       autoAmount: false,
       payerMode: "manual",
       creditorMode: "manual",
