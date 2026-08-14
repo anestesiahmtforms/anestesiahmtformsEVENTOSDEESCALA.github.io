@@ -31,6 +31,7 @@
     requestTimeoutMs: 15000
   };
   const siglaStateStorageKey = "sahmt-sigla-checks-v1";
+  const siglaEventStateStorageKey = "sahmt-sigla-events-v1";
   const clientIdStorageKey = "sahmt-client-id-v1";
   const sharedStateEndpoint = normalizeEndpoint(syncConfig.endpoint);
   const syncPollIntervalMs = Number(syncConfig.pollIntervalMs) > 0 ? Number(syncConfig.pollIntervalMs) : 20000;
@@ -46,12 +47,14 @@
   let sharedStateHash = serializeSiglaState(siglaCheckState);
   let sharedStateTimer = null;
   const pendingSharedUpdates = new Map();
+  const siglaEventState = loadSiglaEventState();
   let eventRecords = [];
   let memberDirectory = buildFallbackMemberDirectory();
   let dcMemberOptions = buildFallbackDcOptions();
   let eventFieldOptions = buildFallbackEventFieldOptions();
   let eventTypeDefaults = buildFallbackEventTypeDefaults();
   let siglaChoiceResolver = null;
+  let activeEventLaunch = null;
 
   const elements = {
     dateInput: document.getElementById("dateInput"),
@@ -322,6 +325,10 @@
         token.setAttribute("aria-pressed", "true");
       }
 
+      if (!isWholeSiglaOnVacation(sigla, vacationSiglas) && shouldHighlightEventSigla(dateKey, sigla)) {
+        token.classList.add("sigla-token--event");
+      }
+
       const counter = document.createElement("div");
       counter.className = "sigla-index";
       counter.textContent = String(index + 1);
@@ -434,6 +441,87 @@
     } catch (error) {
       // Ignore storage failures to avoid blocking the UI on restricted browsers.
     }
+  }
+
+  function loadSiglaEventState() {
+    try {
+      const raw = window.localStorage.getItem(siglaEventStateStorageKey);
+
+      if (!raw) {
+        return {};
+      }
+
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  function saveSiglaEventState() {
+    try {
+      window.localStorage.setItem(siglaEventStateStorageKey, JSON.stringify(siglaEventState));
+    } catch (error) {
+      // Ignore storage failures to avoid blocking the UI on restricted browsers.
+    }
+  }
+
+  function beginEventLaunch(sigla, dateKey) {
+    if (!sigla || !dateKey) {
+      activeEventLaunch = null;
+      return;
+    }
+
+    activeEventLaunch = {
+      sigla: String(sigla).trim().toUpperCase(),
+      dateKey: String(dateKey).trim()
+    };
+    render(elements.dateInput?.value || dateKey);
+  }
+
+  function cancelActiveEventLaunch() {
+    if (!activeEventLaunch) {
+      return;
+    }
+
+    const currentDate = activeEventLaunch.dateKey;
+    activeEventLaunch = null;
+    render(elements.dateInput?.value || currentDate);
+  }
+
+  function commitActiveEventLaunch() {
+    if (!activeEventLaunch?.dateKey || !activeEventLaunch?.sigla) {
+      return;
+    }
+
+    const { dateKey, sigla } = activeEventLaunch;
+
+    if (!Array.isArray(siglaEventState[dateKey])) {
+      siglaEventState[dateKey] = [];
+    }
+
+    if (!siglaEventState[dateKey].includes(sigla)) {
+      siglaEventState[dateKey].push(sigla);
+    }
+
+    saveSiglaEventState();
+    activeEventLaunch = null;
+    render(elements.dateInput?.value || dateKey);
+  }
+
+  function shouldHighlightEventSigla(dateKey, sigla) {
+    const normalizedDate = String(dateKey || "").trim();
+    const normalizedSigla = String(sigla || "").trim().toUpperCase();
+
+    if (!normalizedDate || !normalizedSigla) {
+      return false;
+    }
+
+    if (activeEventLaunch?.dateKey === normalizedDate && activeEventLaunch?.sigla === normalizedSigla) {
+      return true;
+    }
+
+    return Array.isArray(siglaEventState[normalizedDate]) && siglaEventState[normalizedDate].includes(normalizedSigla);
   }
 
   function applySiglaCheckAppearance(token, marked) {
@@ -693,6 +781,7 @@
   }
 
   async function handleSiglaClick(sigla, weekdayLabel, dateKey) {
+    beginEventLaunch(sigla, dateKey);
     const choices = getMemberChoicesForSigla(sigla, weekdayLabel);
 
     if (!choices.length) {
@@ -709,6 +798,7 @@
 
     const selectedChoice = await openSiglaChoiceModal(sigla, choices);
     if (!selectedChoice) {
+      cancelActiveEventLaunch();
       return;
     }
 
@@ -736,6 +826,7 @@
     elements.eventEntryModal.classList.add("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
+    cancelActiveEventLaunch();
   }
 
   function prefillMemberStatus(memberName, dateKey) {
@@ -813,7 +904,7 @@
   async function onEventEntrySubmit(event) {
     event.preventDefault();
 
-    if (!elements.eventEntryForm?.reportValidity()) {
+    if (!validateEventEntryForm()) {
       return;
     }
 
@@ -823,6 +914,7 @@
 
     try {
       const result = await postEventEntryPayload(payload);
+      commitActiveEventLaunch();
       resetEventEntryForm(payload.dataDoEvento);
       setEventEntryStatus(
         `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`,
@@ -846,7 +938,7 @@
     const payer = String(elements.payerInput?.value || "").trim();
     const creditor = String(elements.creditorInput?.value || "").trim();
     const amountToPay = String(elements.amountToPayInput?.value || "").trim();
-    const origin = String(elements.originInput?.value || "PWA Eventos de escala").trim() || "PWA Eventos de escala";
+    const origin = "PWA Eventos de escala";
     const createdAtIso = new Date().toISOString();
 
     return {
@@ -925,6 +1017,46 @@
     }
 
     updateEventEntryState();
+  }
+
+  function validateEventEntryForm() {
+    if (!elements.eventEntryForm) {
+      return false;
+    }
+
+    const controls = [
+      elements.eventDateInput,
+      elements.memberStatusInput,
+      elements.eventTypeInput,
+      elements.eventDescriptionInput,
+      elements.delayMultipleInput,
+      elements.substituteInput,
+      elements.shiftInput,
+      elements.payerInput,
+      elements.creditorInput,
+      elements.amountToPayInput
+    ].filter(Boolean);
+
+    for (const control of controls) {
+      const field = control.closest(".entry-field");
+      const isVisible = !field?.classList.contains("hidden");
+      const isRequired = control.required;
+      const isDisabled = control.disabled;
+      const value = String(control.value || "").trim();
+
+      if (isVisible && isRequired && !isDisabled && !value) {
+        const label = field?.querySelector("span")?.textContent || "campo obrigatorio";
+        setEventEntryStatus(`Preencha o campo obrigatorio: ${label}.`, "error");
+        control.focus();
+        return false;
+      }
+    }
+
+    if (!elements.eventEntryForm.reportValidity()) {
+      return false;
+    }
+
+    return true;
   }
 
   function setEventEntrySubmitting(isSubmitting) {
@@ -1224,10 +1356,19 @@
     toggleEventField(elements.eventDescriptionInput, rule.showDescription);
     toggleEventField(elements.delayMultipleInput, rule.showDelayMultiple);
     toggleEventField(elements.substituteInput, !rule.hideSubstitute);
+    toggleEventField(elements.shiftInput, rule.showShift);
 
     setFieldDisabled(elements.substituteInput, rule.disableSubstitute);
-    setFieldDisabled(elements.creditorInput, rule.autoCreditor);
-    setFieldDisabled(elements.amountToPayInput, rule.autoAmount);
+    setFieldRequired(elements.eventDateInput, true);
+    setFieldRequired(elements.memberStatusInput, true);
+    setFieldRequired(elements.eventTypeInput, true);
+    setFieldRequired(elements.eventDescriptionInput, rule.showDescription);
+    setFieldRequired(elements.delayMultipleInput, rule.showDelayMultiple);
+    setFieldRequired(elements.substituteInput, !rule.hideSubstitute && !rule.disableSubstitute);
+    setFieldRequired(elements.shiftInput, rule.showShift);
+    setFieldRequired(elements.payerInput, true);
+    setFieldRequired(elements.creditorInput, true);
+    setFieldRequired(elements.amountToPayInput, true);
 
     if (rule.disableSubstitute && elements.substituteInput) {
       elements.substituteInput.value = "";
@@ -1239,6 +1380,10 @@
 
     if (!rule.showDelayMultiple && elements.delayMultipleInput) {
       elements.delayMultipleInput.value = "";
+    }
+
+    if (!rule.showShift && elements.shiftInput) {
+      elements.shiftInput.value = "";
     }
 
     if (elements.payerInput && rule.autoPayer) {
@@ -1261,6 +1406,7 @@
         showDescription: false,
         showDelayMultiple: true,
         hideSubstitute: true,
+        showShift: false,
         disableSubstitute: true,
         autoPayer: true,
         autoCreditor: true,
@@ -1276,6 +1422,7 @@
         showDescription: false,
         showDelayMultiple: false,
         hideSubstitute: false,
+        showShift: true,
         disableSubstitute: false,
         autoPayer: true,
         autoCreditor: true,
@@ -1291,6 +1438,7 @@
         showDescription: false,
         showDelayMultiple: false,
         hideSubstitute: false,
+        showShift: true,
         disableSubstitute: false,
         autoPayer: true,
         autoCreditor: true,
@@ -1306,6 +1454,7 @@
         showDescription: true,
         showDelayMultiple: false,
         hideSubstitute: false,
+        showShift: true,
         disableSubstitute: false,
         autoPayer: true,
         autoCreditor: true,
@@ -1316,13 +1465,14 @@
       };
     }
 
-    return {
-      showDescription: false,
-      showDelayMultiple: false,
-      hideSubstitute: false,
-      disableSubstitute: false,
-      autoPayer: false,
-      autoCreditor: false,
+      return {
+        showDescription: false,
+        showDelayMultiple: false,
+        hideSubstitute: false,
+        showShift: true,
+        disableSubstitute: false,
+        autoPayer: false,
+        autoCreditor: false,
       autoAmount: false,
       payerMode: "manual",
       creditorMode: "manual",
@@ -1353,6 +1503,14 @@
     }
 
     control.disabled = disabled;
+  }
+
+  function setFieldRequired(control, required) {
+    if (!control) {
+      return;
+    }
+
+    control.required = required;
   }
 
   function resolveEventEntryPayer(rule, memberName) {

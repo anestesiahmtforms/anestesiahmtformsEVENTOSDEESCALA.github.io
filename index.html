@@ -140,9 +140,9 @@
       <div class="entry-sheet__header">
         <div>
           <p class="entry-sheet__kicker">Lancamento do evento</p>
-          <h2 id="eventEntryTitle">Preencher dados</h2>
+          <h2 id="eventEntryTitle" class="hidden">Lancamento do evento</h2>
         </div>
-        <button id="closeEventEntryModal" class="entry-sheet__close" type="button" aria-label="Fechar lancamento do evento">Fechar</button>
+        <button id="closeEventEntryModal" class="entry-sheet__close" type="button" aria-label="Voltar ao app">Voltar</button>
       </div>
 
       <form id="eventEntryForm" class="entry-form" autocomplete="on">
@@ -163,7 +163,7 @@
 
         <label class="entry-field" for="eventDescriptionInput">
           <span>Descricao do evento</span>
-          <textarea id="eventDescriptionInput" name="eventDescription" rows="4" placeholder="Descreva o evento"></textarea>
+          <textarea id="eventDescriptionInput" name="eventDescription" rows="2" placeholder="Descreva o evento"></textarea>
         </label>
 
         <label class="entry-field" for="delayMultipleInput">
@@ -194,11 +194,6 @@
         <label class="entry-field" for="amountToPayInput">
           <span>VALOR A PAGAR</span>
           <input id="amountToPayInput" name="amountToPay" type="text" inputmode="decimal" placeholder="R$ 0,00">
-        </label>
-
-        <label class="entry-field" for="originInput">
-          <span>Origem</span>
-          <input id="originInput" name="origin" type="text" value="PWA Eventos de escala" placeholder="Informe a origem">
         </label>
 
         <div class="entry-actions">
