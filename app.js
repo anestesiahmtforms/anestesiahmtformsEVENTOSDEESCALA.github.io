@@ -229,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-4", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-5", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -927,6 +927,8 @@
       const result = await postEventEntryPayload(payload);
       const successMessage = `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`;
       commitActiveEventLaunch();
+      upsertRecentEventRecord(payload);
+      renderRecordsForDate(elements.recordsDateInput?.value || todayKey);
       resetEventEntryForm(payload.dataDoEvento);
       hydrateEventRecords().catch(() => {});
       setEventEntryStatus(successMessage, "success");
@@ -1219,6 +1221,79 @@
         origem: String(row[11] || "").trim()
       }))
       .filter((record) => record.dataDoEvento);
+  }
+
+  function upsertRecentEventRecord(payload) {
+    if (!payload) {
+      return;
+    }
+
+    const nextRecord = {
+      timestamp: formatRecordTimestamp(payload.criadoEmIso || payload.criadoEm || new Date().toISOString()),
+      dataDoEvento: normalizeRecordDate(payload.dataDoEvento || payload.data),
+      membro: String(payload.membroAusenteAtrasado || payload.ausente || "").trim(),
+      tipo: String(payload.tipoDeEvento || payload.evento || "").trim(),
+      descricao: String(payload.descricaoDoEvento || payload.eventoDescricao || "").trim(),
+      multiplo: String(payload.multiploDoAtraso || payload.atrasoTempo || "").trim(),
+      substituto: String(payload.membroSubstituto || payload.presente || "").trim(),
+      turno: String(payload.turno || "").trim(),
+      pagador: String(payload.pagador || payload.devedor || payload.responsavelPeloOnus || "").trim(),
+      credor: String(payload.credor || payload.resultadoCredor || "").trim(),
+      valor: String(payload.valorAPagar || payload.valorPagar || "").trim(),
+      origem: String(payload.origem || "PWA Eventos de escala").trim()
+    };
+
+    if (!nextRecord.dataDoEvento) {
+      return;
+    }
+
+    eventRecords = [
+      nextRecord,
+      ...eventRecords.filter((record) => !isSameEventRecord(record, nextRecord))
+    ];
+  }
+
+  function isSameEventRecord(left, right) {
+    return [
+      left?.timestamp,
+      left?.dataDoEvento,
+      left?.membro,
+      left?.tipo,
+      left?.descricao,
+      left?.multiplo,
+      left?.substituto,
+      left?.turno,
+      left?.pagador,
+      left?.credor,
+      left?.valor
+    ].join("||") === [
+      right?.timestamp,
+      right?.dataDoEvento,
+      right?.membro,
+      right?.tipo,
+      right?.descricao,
+      right?.multiplo,
+      right?.substituto,
+      right?.turno,
+      right?.pagador,
+      right?.credor,
+      right?.valor
+    ].join("||");
+  }
+
+  function formatRecordTimestamp(value) {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return String(value || "").trim();
+    }
+
+    return new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(parsed);
   }
 
   function renderRecordsForDate(dateKey) {
