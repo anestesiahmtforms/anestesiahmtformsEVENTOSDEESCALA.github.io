@@ -229,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-10", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-11", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1210,7 +1210,8 @@
     return parseCsvRows(csvText)
       .filter((row) => row.some((cell) => String(cell || "").trim()))
       .map((row) => ({
-        timestamp: String(row[0] || "").trim(),
+        timestampRaw: String(row[0] || "").trim(),
+        timestamp: formatRecordTimestamp(row[0]),
         dataDoEvento: formatRecordDate(row[1]),
         dataDoEventoKey: normalizeRecordDate(row[1]),
         membro: String(row[2] || "").trim(),
@@ -1224,7 +1225,8 @@
         valor: String(row[10] || "").trim(),
         origem: String(row[11] || "").trim()
       }))
-      .filter((record) => record.dataDoEventoKey);
+      .filter((record) => record.dataDoEventoKey)
+      .sort(compareEventRecordsDesc);
   }
 
   function upsertRecentEventRecord(payload) {
@@ -1233,6 +1235,7 @@
     }
 
     const nextRecord = {
+      timestampRaw: String(payload.criadoEmIso || payload.criadoEm || new Date().toISOString()).trim(),
       timestamp: formatRecordTimestamp(payload.criadoEmIso || payload.criadoEm || new Date().toISOString()),
       dataDoEvento: formatRecordDate(payload.dataDoEvento || payload.data),
       dataDoEventoKey: normalizeRecordDate(payload.dataDoEvento || payload.data),
@@ -1255,12 +1258,13 @@
     eventRecords = [
       nextRecord,
       ...eventRecords.filter((record) => !isSameEventRecord(record, nextRecord))
-    ];
+    ].sort(compareEventRecordsDesc);
   }
 
   function isSameEventRecord(left, right) {
     return [
       left?.timestamp,
+      left?.timestampRaw,
       left?.dataDoEventoKey,
       left?.membro,
       left?.tipo,
@@ -1273,6 +1277,7 @@
       left?.valor
     ].join("||") === [
       right?.timestamp,
+      right?.timestampRaw,
       right?.dataDoEventoKey,
       right?.membro,
       right?.tipo,
@@ -1299,6 +1304,23 @@
       hour: "2-digit",
       minute: "2-digit"
     }).format(parsed);
+  }
+
+  function compareEventRecordsDesc(left, right) {
+    const leftTime = Date.parse(left?.timestampRaw || left?.timestamp || "");
+    const rightTime = Date.parse(right?.timestampRaw || right?.timestamp || "");
+
+    if (Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime !== rightTime) {
+      return rightTime - leftTime;
+    }
+
+    const leftDateKey = String(left?.dataDoEventoKey || "");
+    const rightDateKey = String(right?.dataDoEventoKey || "");
+    if (leftDateKey !== rightDateKey) {
+      return rightDateKey.localeCompare(leftDateKey);
+    }
+
+    return String(right?.membro || "").localeCompare(String(left?.membro || ""), "pt-BR");
   }
 
   function renderRecordsForDate(dateKey) {
@@ -1333,8 +1355,7 @@
         ["Turno", record.turno],
         ["Pagador", record.pagador],
         ["Credor", record.credor],
-        ["Valor a pagar", record.valor],
-        ["Origem", record.origem]
+        ["Valor a pagar", record.valor]
       ]
         .filter(([, value]) => String(value || "").trim())
         .forEach(([label, value]) => {
@@ -1505,7 +1526,7 @@
 
     if (elements.amountToPayInput && rule.autoAmount) {
       const amount = resolveEventEntryAmount(rule, shift, Number.isFinite(delayMultiple) ? delayMultiple : 0);
-      elements.amountToPayInput.value = amount ? formatCurrencyInput(amount) : "";
+      elements.amountToPayInput.value = formatCurrencyInput(amount);
     }
   }
 

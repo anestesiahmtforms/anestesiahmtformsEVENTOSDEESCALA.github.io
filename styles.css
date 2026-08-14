@@ -365,6 +365,10 @@ body.modal-open {
   display: grid;
   gap: 8px;
   margin-top: 8px;
+  max-height: 235px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
 }
 
 .record-card {
