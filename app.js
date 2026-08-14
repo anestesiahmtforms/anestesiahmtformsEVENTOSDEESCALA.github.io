@@ -69,6 +69,7 @@
   let siglaChoiceResolver = null;
   let activeEventLaunch = null;
   let activeEventRecordEdit = null;
+  let autoFilledFieldLocks = new Set();
 
   const elements = {
     dateInput: document.getElementById("dateInput"),
@@ -269,7 +270,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-20", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-21", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -895,6 +896,7 @@
 
     if (elements.memberStatusInput) {
       elements.memberStatusInput.value = memberName || "";
+      setAutoFilledFieldLock(elements.memberStatusInput, Boolean(String(memberName || "").trim()));
     }
 
     updateEventEntryState();
@@ -1120,6 +1122,7 @@
 
     elements.eventEntryForm.reset();
     activeEventRecordEdit = null;
+    resetAutoFilledFieldLocks();
     populateEventEntryOptionLists();
     syncEventEntryModeUi();
 
@@ -1632,6 +1635,7 @@
       history: record.history || ""
     };
 
+    resetAutoFilledFieldLocks();
     populateEventEntryOptionLists();
 
     if (elements.eventDateInput) {
@@ -2000,6 +2004,10 @@
     toggleEventField(elements.substituteInput, !rule.hideSubstitute);
     toggleEventField(elements.shiftInput, rule.showShift);
 
+    setAutoFilledFieldLock(elements.payerInput, !isEditingEventRecord() && rule.autoPayer && Boolean(resolveEventEntryPayer(rule, memberName)));
+    setAutoFilledFieldLock(elements.creditorInput, !isEditingEventRecord() && rule.autoCreditor && Boolean(resolveEventEntryCreditor(rule, substitute)));
+    setAutoFilledFieldLock(elements.amountToPayInput, !isEditingEventRecord() && rule.autoAmount);
+
     setFieldDisabled(elements.substituteInput, rule.disableSubstitute);
     setFieldRequired(elements.eventDateInput, true);
     setFieldRequired(elements.memberStatusInput, true);
@@ -2144,7 +2152,8 @@
       return;
     }
 
-    control.disabled = disabled;
+    control.dataset.baseDisabled = disabled ? "true" : "false";
+    syncFieldInteractivity(control);
   }
 
   function setFieldRequired(control, required) {
@@ -2175,6 +2184,67 @@
     }
 
     select.value = text;
+  }
+
+  function resetAutoFilledFieldLocks() {
+    autoFilledFieldLocks = new Set();
+    syncAutoFilledFieldLocks();
+  }
+
+  function setAutoFilledFieldLock(control, shouldLock) {
+    if (!control?.id) {
+      return;
+    }
+
+    if (shouldLock) {
+      autoFilledFieldLocks.add(control.id);
+    } else {
+      autoFilledFieldLocks.delete(control.id);
+    }
+
+    syncFieldInteractivity(control);
+  }
+
+  function hasAutoFilledFieldLock(control) {
+    if (!control?.id || isEditingEventRecord()) {
+      return false;
+    }
+
+    return autoFilledFieldLocks.has(control.id);
+  }
+
+  function syncAutoFilledFieldLocks() {
+    [
+      elements.memberStatusInput,
+      elements.payerInput,
+      elements.creditorInput,
+      elements.amountToPayInput,
+      elements.substituteInput
+    ].filter(Boolean).forEach(syncFieldInteractivity);
+  }
+
+  function syncFieldInteractivity(control) {
+    if (!control) {
+      return;
+    }
+
+    const field = control.closest(".entry-field");
+    const baseDisabled = control.dataset.baseDisabled === "true";
+    const autoLocked = hasAutoFilledFieldLock(control);
+    const shouldDisableSelect = control instanceof HTMLSelectElement && (baseDisabled || autoLocked);
+
+    if (control instanceof HTMLSelectElement) {
+      control.disabled = shouldDisableSelect;
+    } else {
+      control.disabled = baseDisabled;
+      control.readOnly = autoLocked;
+      control.setAttribute("aria-readonly", autoLocked ? "true" : "false");
+    }
+
+    if (field) {
+      field.classList.toggle("entry-field--disabled", baseDisabled || autoLocked);
+      field.classList.toggle("entry-field--locked", autoLocked);
+    }
   }
 
   function resolveEventEntryPayer(rule, memberName) {
