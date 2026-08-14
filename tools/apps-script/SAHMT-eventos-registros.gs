@@ -2,7 +2,7 @@
 // Planilha alvo: 1WAeUMVOj21LEsWOE7RzsoSF_2QW1mQnMBxZuWupWnCI
 // Aba alvo: Registros
 // Endpoint implantado e confirmado em 14/08/2026:
-// https://script.google.com/macros/s/AKfycbx5qHJcAWk0dVGEvd9xnxeW6t7WgLE4nuDw8_pWRb26lh0KCUK4kEGoj4KzKGELenXZ/exec
+// https://script.google.com/macros/s/AKfycbxvsLrJL4PBoWaNQka8C2sk3SkNeo8KfBPHSHGYk-YuLPn2h4BDT_B1bR3aW02hapt-/exec
 const EVENTOS_SPREADSHEET_ID = '1WAeUMVOj21LEsWOE7RzsoSF_2QW1mQnMBxZuWupWnCI';
 const EVENTOS_REGISTROS_SHEET = 'Registros';
 const EVENTOS_HEADERS = [
@@ -33,7 +33,7 @@ function doPost(e) {
   try {
     const payload = parsePayload_(e);
     const row = buildRow_(payload);
-    const lock = LockService.getDocumentLock();
+    const lock = LockService.getScriptLock();
     lock.waitLock(20000);
 
     try {
