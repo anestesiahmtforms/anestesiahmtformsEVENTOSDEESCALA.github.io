@@ -921,7 +921,11 @@
         "success"
       );
     } catch (error) {
-      setEventEntryStatus("Nao foi possivel sincronizar agora. Confira o endpoint e tente novamente.", "error");
+      const detail = String(error?.message || "").trim();
+      setEventEntryStatus(
+        `Nao foi possivel sincronizar agora.${detail ? ` ${detail}` : " Confira o endpoint e tente novamente."}`,
+        "error"
+      );
     } finally {
       setEventEntrySubmitting(false);
     }
