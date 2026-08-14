@@ -17,7 +17,8 @@ const EVENTOS_HEADERS = [
   'PAGADOR',
   'CREDOR',
   'VALOR A PAGAR',
-  'ORIGEM'
+  'ORIGEM',
+  'HISTORICO DE ALTERACAO'
 ];
 
 function doGet() {
@@ -32,22 +33,26 @@ function doGet() {
 function doPost(e) {
   try {
     const payload = parsePayload_(e);
-    const row = buildRow_(payload);
     const lock = LockService.getScriptLock();
     lock.waitLock(20000);
+    var result;
 
     try {
       const sheet = getRegistrosSheet_();
       ensureHeaders_(sheet);
-      sheet.appendRow(row);
+      result = shouldUpdateRow_(payload)
+        ? updateExistingRow_(sheet, payload)
+        : appendNewRow_(sheet, payload);
     } finally {
       lock.releaseLock();
     }
 
     return jsonResponse_({
       ok: true,
-      message: 'Registro salvo.',
-      savedAt: row[0]
+      message: result.message,
+      savedAt: result.savedAt,
+      rowIndex: result.rowIndex,
+      history: result.history
     });
   } catch (error) {
     return jsonResponse_({
@@ -62,6 +67,10 @@ function parsePayload_(e) {
   const payload = JSON.parse(raw);
 
   const normalized = {
+    operation: pickFirstValue_(payload, ['operation']),
+    rowIndex: pickFirstValue_(payload, ['rowIndex']),
+    originalTimestamp: pickFirstValue_(payload, ['originalTimestamp']),
+    originalHistory: pickFirstValue_(payload, ['originalHistory']),
     dataDoEvento: pickFirstValue_(payload, ['dataDoEvento', 'data']),
     membro: pickFirstValue_(payload, ['membroAusenteAtrasado', 'ausente']),
     tipo: pickFirstValue_(payload, ['tipoDeEvento', 'evento']),
@@ -98,8 +107,51 @@ function parsePayload_(e) {
   return normalized;
 }
 
-function buildRow_(payload) {
-  const timestamp = normalizeTimestamp_(payload.criadoEm || new Date());
+function shouldUpdateRow_(payload) {
+  return String(payload.operation || '').toLowerCase() === 'update' && Number(payload.rowIndex) > 1;
+}
+
+function appendNewRow_(sheet, payload) {
+  const row = buildRow_(payload, '');
+  sheet.appendRow(row);
+
+  return {
+    message: 'Registro salvo.',
+    savedAt: row[0],
+    rowIndex: sheet.getLastRow(),
+    history: ''
+  };
+}
+
+function updateExistingRow_(sheet, payload) {
+  var rowIndex = Number(payload.rowIndex);
+  if (!rowIndex || rowIndex <= 1 || rowIndex > sheet.getLastRow()) {
+    throw new Error('Registro para edicao nao encontrado.');
+  }
+
+  var currentRow = sheet.getRange(rowIndex, 1, 1, EVENTOS_HEADERS.length).getDisplayValues()[0];
+  var timestamp = String(currentRow[0] || '').trim() || normalizeTimestamp_(payload.originalTimestamp || new Date());
+  var previousHistory = String(currentRow[12] || payload.originalHistory || '').trim();
+  var nextRow = buildRow_(payload, previousHistory, timestamp);
+  var historyEntry = buildHistoryEntry_(currentRow, nextRow);
+
+  if (!historyEntry) {
+    throw new Error('Nenhuma alteracao foi identificada para salvar.');
+  }
+
+  nextRow[12] = previousHistory ? previousHistory + '\n' + historyEntry : historyEntry;
+  sheet.getRange(rowIndex, 1, 1, EVENTOS_HEADERS.length).setValues([nextRow]);
+
+  return {
+    message: 'Registro atualizado.',
+    savedAt: nextRow[0],
+    rowIndex: rowIndex,
+    history: nextRow[12]
+  };
+}
+
+function buildRow_(payload, history, timestampOverride) {
+  const timestamp = timestampOverride || normalizeTimestamp_(payload.criadoEm || new Date());
   const dataDoEvento = normalizeDateText_(payload.dataDoEvento);
 
   return [
@@ -114,7 +166,8 @@ function buildRow_(payload) {
     payload.pagador,
     payload.credor,
     payload.valor,
-    payload.origem || 'PWA Eventos de escala'
+    payload.origem || 'PWA Eventos de escala',
+    String(history || '').trim()
   ];
 }
 
@@ -202,6 +255,38 @@ function normalizeTimestamp_(value) {
   }
 
   return Utilities.formatDate(parsed, Session.getScriptTimeZone(), "yyyy-MM-dd'T'HH:mm:ss");
+}
+
+function buildHistoryEntry_(currentRow, nextRow) {
+  var labels = [
+    'Data do Evento',
+    'MEMBRO (AUSENTE/ATRASADO)',
+    'Tipo de Evento',
+    'Descricao do evento',
+    'Multiplo do atraso',
+    'SUBSTITUTO',
+    'TURNO',
+    'PAGADOR',
+    'CREDOR',
+    'VALOR A PAGAR',
+    'ORIGEM'
+  ];
+  var changes = [];
+
+  for (var index = 1; index <= 11; index += 1) {
+    var previousValue = String(currentRow[index] || '').trim();
+    var nextValue = String(nextRow[index] || '').trim();
+    if (previousValue !== nextValue) {
+      changes.push(labels[index - 1] + ': "' + previousValue + '" -> "' + nextValue + '"');
+    }
+  }
+
+  if (!changes.length) {
+    return '';
+  }
+
+  var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+  return 'Alterado em ' + now + ' | ' + changes.join('; ');
 }
 
 function jsonResponse_(payload) {

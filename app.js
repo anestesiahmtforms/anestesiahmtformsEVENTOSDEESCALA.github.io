@@ -68,6 +68,7 @@
   let eventTypeDefaults = buildFallbackEventTypeDefaults();
   let siglaChoiceResolver = null;
   let activeEventLaunch = null;
+  let activeEventRecordEdit = null;
 
   const elements = {
     dateInput: document.getElementById("dateInput"),
@@ -77,6 +78,7 @@
     eventEntryModal: document.getElementById("eventEntryModal"),
     eventEntryBackdrop: document.getElementById("eventEntryBackdrop"),
     closeEventEntryModal: document.getElementById("closeEventEntryModal"),
+    eventEntryKicker: document.getElementById("eventEntryKicker"),
     siglaChoiceModal: document.getElementById("siglaChoiceModal"),
     siglaChoiceBackdrop: document.getElementById("siglaChoiceBackdrop"),
     closeSiglaChoiceModal: document.getElementById("closeSiglaChoiceModal"),
@@ -238,7 +240,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-12", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-13", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -832,6 +834,7 @@
     }
 
     clearEventEntryStatus();
+    syncEventEntryModeUi();
     updateEventEntryState();
     elements.eventEntryModal.classList.remove("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "false");
@@ -847,6 +850,8 @@
     elements.eventEntryModal.setAttribute("aria-hidden", "true");
     document.body.classList.remove("modal-open");
     cancelActiveEventLaunch();
+    activeEventRecordEdit = null;
+    syncEventEntryModeUi();
   }
 
   function prefillMemberStatus(memberName, dateKey) {
@@ -930,13 +935,15 @@
 
     const payload = buildEventEntryPayload();
     setEventEntrySubmitting(true);
-    setEventEntryStatus("Salvando dados na planilha...", "");
+    setEventEntryStatus(isEditingEventRecord() ? "Salvando alteracao na planilha..." : "Salvando dados na planilha...", "");
 
     try {
       const result = await postEventEntryPayload(payload);
-      const successMessage = `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`;
+      const successMessage = isEditingEventRecord()
+        ? `Alteracao enviada com sucesso. ${result?.message || "Registro atualizado."}`
+        : `Enviado para a planilha com sucesso. ${result?.message || "Registro confirmado."}`;
       commitActiveEventLaunch();
-      upsertRecentEventRecord(payload);
+      upsertRecentEventRecord(payload, result);
       renderRecordsForDate(elements.recordsDateInput?.value || todayKey);
       resetEventEntryForm(payload.dataDoEvento);
       window.setTimeout(() => {
@@ -972,6 +979,12 @@
     const amountToPay = String(elements.amountToPayInput?.value || "").trim();
     const origin = "PWA Eventos de escala";
     const createdAtIso = new Date().toISOString();
+    const editMetadata = isEditingEventRecord() ? {
+      operation: "update",
+      rowIndex: activeEventRecordEdit.rowIndex,
+      originalTimestamp: activeEventRecordEdit.timestampRaw || activeEventRecordEdit.timestamp,
+      originalHistory: activeEventRecordEdit.history || ""
+    } : {};
 
     return {
       data: displayEventDate,
@@ -996,7 +1009,8 @@
       valorAPagar: amountToPay,
       origem: origin,
       criadoEm: createdAtIso,
-      criadoEmIso: createdAtIso
+      criadoEmIso: createdAtIso,
+      ...editMetadata
     };
   }
 
@@ -1038,7 +1052,9 @@
     }
 
     elements.eventEntryForm.reset();
+    activeEventRecordEdit = null;
     populateEventEntryOptionLists();
+    syncEventEntryModeUi();
 
     if (elements.eventDateInput) {
       elements.eventDateInput.value = dateKey || elements.dateInput?.value || todayKey;
@@ -1094,7 +1110,7 @@
   function setEventEntrySubmitting(isSubmitting) {
     if (elements.submitEventEntryButton) {
       elements.submitEventEntryButton.disabled = isSubmitting;
-      elements.submitEventEntryButton.textContent = isSubmitting ? "Salvando..." : "Salvar na planilha";
+      elements.submitEventEntryButton.textContent = isSubmitting ? "Salvando..." : getEventEntrySubmitLabel();
     }
   }
 
@@ -1203,7 +1219,7 @@
     const url = new URL(`https://docs.google.com/spreadsheets/d/${eventListsSpreadsheetId}/gviz/tq`);
     url.searchParams.set("tqx", "out:csv");
     url.searchParams.set("sheet", recordsSheetTitle);
-    url.searchParams.set("range", "A2:L2000");
+    url.searchParams.set("range", "A2:M2000");
 
     const response = await fetch(url.toString(), {
       method: "GET",
@@ -1218,7 +1234,8 @@
     const csvText = await response.text();
     return parseCsvRows(csvText)
       .filter((row) => row.some((cell) => String(cell || "").trim()))
-      .map((row) => ({
+      .map((row, index) => ({
+        rowIndex: index + 2,
         timestampRaw: String(row[0] || "").trim(),
         timestamp: formatRecordTimestamp(row[0]),
         dataDoEvento: formatRecordDate(row[1]),
@@ -1232,18 +1249,20 @@
         pagador: String(row[8] || "").trim(),
         credor: String(row[9] || "").trim(),
         valor: String(row[10] || "").trim(),
-        origem: String(row[11] || "").trim()
+        origem: String(row[11] || "").trim(),
+        history: String(row[12] || "").trim()
       }))
       .filter((record) => record.dataDoEventoKey)
       .sort(compareEventRecordsDesc);
   }
 
-  function upsertRecentEventRecord(payload) {
+  function upsertRecentEventRecord(payload, result) {
     if (!payload) {
       return;
     }
 
     const nextRecord = {
+      rowIndex: Number.parseInt(String(result?.rowIndex || payload.rowIndex || activeEventRecordEdit?.rowIndex || ""), 10) || null,
       timestampRaw: String(payload.criadoEmIso || payload.criadoEm || new Date().toISOString()).trim(),
       timestamp: formatRecordTimestamp(payload.criadoEmIso || payload.criadoEm || new Date().toISOString()),
       dataDoEvento: formatRecordDate(payload.dataDoEvento || payload.data),
@@ -1257,21 +1276,28 @@
       pagador: String(payload.pagador || payload.devedor || payload.responsavelPeloOnus || "").trim(),
       credor: String(payload.credor || payload.resultadoCredor || "").trim(),
       valor: String(payload.valorAPagar || payload.valorPagar || "").trim(),
-      origem: String(payload.origem || "PWA Eventos de escala").trim()
+      origem: String(payload.origem || "PWA Eventos de escala").trim(),
+      history: String(result?.history || activeEventRecordEdit?.history || "").trim()
     };
 
     if (!nextRecord.dataDoEventoKey) {
       return;
     }
 
+    if (isEditingEventRecord() && activeEventRecordEdit?.timestampRaw) {
+      nextRecord.timestampRaw = activeEventRecordEdit.timestampRaw;
+      nextRecord.timestamp = activeEventRecordEdit.timestamp;
+    }
+
     eventRecords = [
       nextRecord,
-      ...eventRecords.filter((record) => !isSameEventRecord(record, nextRecord))
+      ...eventRecords.filter((record) => !isSameEventRecord(record, nextRecord) && !isSameRecordRow(record, nextRecord))
     ].sort(compareEventRecordsDesc);
   }
 
   function isSameEventRecord(left, right) {
     return [
+      left?.rowIndex,
       left?.timestamp,
       left?.timestampRaw,
       left?.dataDoEventoKey,
@@ -1283,8 +1309,10 @@
       left?.turno,
       left?.pagador,
       left?.credor,
-      left?.valor
+      left?.valor,
+      left?.history
     ].join("||") === [
+      right?.rowIndex,
       right?.timestamp,
       right?.timestampRaw,
       right?.dataDoEventoKey,
@@ -1296,8 +1324,13 @@
       right?.turno,
       right?.pagador,
       right?.credor,
-      right?.valor
+      right?.valor,
+      right?.history
     ].join("||");
+  }
+
+  function isSameRecordRow(left, right) {
+    return Number(left?.rowIndex || 0) > 0 && Number(left?.rowIndex || 0) === Number(right?.rowIndex || -1);
   }
 
   function formatRecordTimestamp(value) {
@@ -1345,6 +1378,10 @@
     records.forEach((record, index) => {
       const card = document.createElement("article");
       card.className = `record-card record-card--tone-${(index % 4) + 1}`;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `Editar registro de ${record.membro || record.tipo || "evento"}`);
+      card.addEventListener("dblclick", () => startEventRecordEdit(record));
 
       const title = document.createElement("p");
       title.className = "record-card__title";
@@ -1364,7 +1401,8 @@
         ["Turno", record.turno],
         ["Pagador", record.pagador],
         ["Credor", record.credor],
-        ["Valor a pagar", record.valor]
+        ["Valor a pagar", record.valor],
+        ["Ultima modificacao", record.history]
       ]
         .filter(([, value]) => String(value || "").trim())
         .forEach(([label, value]) => {
@@ -1387,6 +1425,72 @@
       card.appendChild(rows);
       elements.recordsList.appendChild(card);
     });
+  }
+
+  function startEventRecordEdit(record) {
+    if (!record) {
+      return;
+    }
+
+    activeEventRecordEdit = {
+      rowIndex: record.rowIndex,
+      timestampRaw: record.timestampRaw,
+      timestamp: record.timestamp,
+      history: record.history || ""
+    };
+
+    populateEventEntryOptionLists();
+
+    if (elements.eventDateInput) {
+      elements.eventDateInput.value = record.dataDoEventoKey || todayKey;
+    }
+    if (elements.memberStatusInput) {
+      elements.memberStatusInput.value = record.membro || "";
+    }
+    if (elements.eventTypeInput) {
+      setSelectControlValue(elements.eventTypeInput, record.tipo || "");
+    }
+    if (elements.eventDescriptionInput) {
+      elements.eventDescriptionInput.value = record.descricao || "";
+    }
+    if (elements.delayMultipleInput) {
+      setSelectControlValue(elements.delayMultipleInput, record.multiplo || "");
+    }
+    if (elements.substituteInput) {
+      setSelectControlValue(elements.substituteInput, record.substituto || "");
+    }
+    if (elements.shiftInput) {
+      setSelectControlValue(elements.shiftInput, record.turno || "");
+    }
+    if (elements.payerInput) {
+      setSelectControlValue(elements.payerInput, record.pagador || "");
+    }
+    if (elements.creditorInput) {
+      setSelectControlValue(elements.creditorInput, record.credor || "");
+    }
+    if (elements.amountToPayInput) {
+      elements.amountToPayInput.value = record.valor || "";
+    }
+
+    openEventEntryModal();
+  }
+
+  function isEditingEventRecord() {
+    return Boolean(activeEventRecordEdit && Number(activeEventRecordEdit.rowIndex || 0) > 0);
+  }
+
+  function syncEventEntryModeUi() {
+    if (elements.eventEntryKicker) {
+      elements.eventEntryKicker.textContent = isEditingEventRecord() ? "Editar registro do evento" : "Lancamento do evento";
+    }
+
+    if (elements.submitEventEntryButton) {
+      elements.submitEventEntryButton.textContent = getEventEntrySubmitLabel();
+    }
+  }
+
+  function getEventEntrySubmitLabel() {
+    return isEditingEventRecord() ? "Salvar alteracao" : "Salvar na planilha";
   }
 
   function normalizeRecordDate(value) {
