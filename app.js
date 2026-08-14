@@ -229,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-8", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-9", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -951,6 +951,7 @@
 
   function buildEventEntryPayload() {
     const eventDate = String(elements.eventDateInput?.value || "").trim();
+    const displayEventDate = formatRecordDate(eventDate);
     const memberStatus = String(elements.memberStatusInput?.value || "").trim();
     const eventType = String(elements.eventTypeInput?.value || "").trim();
     const eventDescription = String(elements.eventDescriptionInput?.value || "").trim();
@@ -964,8 +965,8 @@
     const createdAtIso = new Date().toISOString();
 
     return {
-      data: eventDate,
-      dataDoEvento: eventDate,
+      data: displayEventDate,
+      dataDoEvento: displayEventDate,
       ausente: memberStatus,
       membroAusenteAtrasado: memberStatus,
       evento: eventType,
@@ -1210,7 +1211,8 @@
       .filter((row) => row.some((cell) => String(cell || "").trim()))
       .map((row) => ({
         timestamp: String(row[0] || "").trim(),
-        dataDoEvento: normalizeRecordDate(row[1]),
+        dataDoEvento: formatRecordDate(row[1]),
+        dataDoEventoKey: normalizeRecordDate(row[1]),
         membro: String(row[2] || "").trim(),
         tipo: String(row[3] || "").trim(),
         descricao: String(row[4] || "").trim(),
@@ -1222,7 +1224,7 @@
         valor: String(row[10] || "").trim(),
         origem: String(row[11] || "").trim()
       }))
-      .filter((record) => record.dataDoEvento);
+      .filter((record) => record.dataDoEventoKey);
   }
 
   function upsertRecentEventRecord(payload) {
@@ -1232,7 +1234,8 @@
 
     const nextRecord = {
       timestamp: formatRecordTimestamp(payload.criadoEmIso || payload.criadoEm || new Date().toISOString()),
-      dataDoEvento: normalizeRecordDate(payload.dataDoEvento || payload.data),
+      dataDoEvento: formatRecordDate(payload.dataDoEvento || payload.data),
+      dataDoEventoKey: normalizeRecordDate(payload.dataDoEvento || payload.data),
       membro: String(payload.membroAusenteAtrasado || payload.ausente || "").trim(),
       tipo: String(payload.tipoDeEvento || payload.evento || "").trim(),
       descricao: String(payload.descricaoDoEvento || payload.eventoDescricao || "").trim(),
@@ -1245,7 +1248,7 @@
       origem: String(payload.origem || "PWA Eventos de escala").trim()
     };
 
-    if (!nextRecord.dataDoEvento) {
+    if (!nextRecord.dataDoEventoKey) {
       return;
     }
 
@@ -1258,7 +1261,7 @@
   function isSameEventRecord(left, right) {
     return [
       left?.timestamp,
-      left?.dataDoEvento,
+      left?.dataDoEventoKey,
       left?.membro,
       left?.tipo,
       left?.descricao,
@@ -1270,7 +1273,7 @@
       left?.valor
     ].join("||") === [
       right?.timestamp,
-      right?.dataDoEvento,
+      right?.dataDoEventoKey,
       right?.membro,
       right?.tipo,
       right?.descricao,
@@ -1304,7 +1307,7 @@
     }
 
     const activeDate = String(dateKey || todayKey).trim();
-    const records = eventRecords.filter((record) => record.dataDoEvento === activeDate);
+    const records = eventRecords.filter((record) => record.dataDoEventoKey === activeDate);
     elements.recordsList.innerHTML = "";
     toggle(elements.recordsEmptyState, records.length === 0);
 
@@ -1377,6 +1380,15 @@
     }
 
     return formatKey(parsed);
+  }
+
+  function formatRecordDate(value) {
+    const normalizedDate = normalizeRecordDate(value);
+    if (!normalizedDate) {
+      return "";
+    }
+
+    return formatShort(normalizedDate);
   }
 
   function populateEventEntryOptionLists() {

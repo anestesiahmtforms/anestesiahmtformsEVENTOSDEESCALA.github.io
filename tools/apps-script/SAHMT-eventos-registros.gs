@@ -160,7 +160,7 @@ function pickFirstValue_(source, keys) {
 
 function normalizeDateText_(value) {
   if (value instanceof Date) {
-    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'dd/MM/yyyy');
   }
 
   var text = String(value || '').trim();
@@ -169,12 +169,13 @@ function normalizeDateText_(value) {
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return text;
+    var isoParts = text.split('-');
+    return isoParts[2] + '/' + isoParts[1] + '/' + isoParts[0];
   }
 
   var brMatch = text.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (brMatch) {
-    return brMatch[3] + '-' + brMatch[2] + '-' + brMatch[1];
+    return brMatch[1] + '/' + brMatch[2] + '/' + brMatch[3];
   }
 
   var parsed = new Date(text);
@@ -182,7 +183,7 @@ function normalizeDateText_(value) {
     return text;
   }
 
-  return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'dd/MM/yyyy');
 }
 
 function normalizeTimestamp_(value) {
