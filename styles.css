@@ -476,6 +476,14 @@ body.modal-open {
   font-weight: 800;
 }
 
+.entry-field select.select-has-highlighted-value {
+  color: #9b5b00;
+  background: rgba(255, 236, 193, 0.96);
+  border-color: rgba(155, 91, 0, 0.3);
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
 .search-banner {
   margin-bottom: 8px;
   padding: 8px;

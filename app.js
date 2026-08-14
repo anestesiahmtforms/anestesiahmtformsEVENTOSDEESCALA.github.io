@@ -36,10 +36,10 @@
   };
   const highlightedEventPeople = [
     "Fernando Astrogildo",
-    "Bernardo Guimarães",
+    "Bernardo Guimaraes",
     "Lucas Marques",
     "Carolina Valadares",
-    "Jéssica Karine",
+    "Jessica Karine",
     "Bruna Candida",
     "CAIXA DA EQUIPE"
   ];
@@ -274,7 +274,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-24", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-25", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1535,7 +1535,7 @@
 
       const title = document.createElement("p");
       title.className = "record-card__title";
-      title.textContent = `${record.tipo || "Registro"}${record.timestamp ? ` • ${record.timestamp}` : ""}`;
+      title.textContent = `${record.tipo || "Registro"}${record.timestamp ? ` - ${record.timestamp}` : ""}`;
       card.appendChild(title);
 
       const rows = document.createElement("div");
@@ -1596,7 +1596,7 @@
     const records = getMonthlyRecords(activeMonth);
     elements.monthlyRecordsList.innerHTML = "";
     toggle(elements.monthlyRecordsEmptyState, records.length === 0);
-    elements.monthlyRecordsSummary.textContent = `${formatMonthLabel(activeMonth)} • ${records.length} registro${records.length === 1 ? "" : "s"}`;
+    elements.monthlyRecordsSummary.textContent = `${formatMonthLabel(activeMonth)} - ${records.length} registro${records.length === 1 ? "" : "s"}`;
 
     records.forEach((record, index) => {
       const card = document.createElement("article");
@@ -1604,7 +1604,7 @@
 
       const title = document.createElement("p");
       title.className = "record-card__title";
-      title.textContent = `${record.tipo || "Registro"}${record.dataDoEvento ? ` • ${record.dataDoEvento}` : ""}`;
+      title.textContent = `${record.tipo || "Registro"}${record.dataDoEvento ? ` - ${record.dataDoEvento}` : ""}`;
       card.appendChild(title);
 
       const rows = document.createElement("div");
@@ -1923,7 +1923,7 @@
     records
       .filter((record) => String(record.history || "").trim())
       .forEach((record) => {
-        const historyLine = `${record.dataDoEvento || ""} • ${record.membro || ""} • ${formatRecordHistoryForDisplay(record.history)}`;
+        const historyLine = `${record.dataDoEvento || ""} - ${record.membro || ""} - ${formatRecordHistoryForDisplay(record.history)}`;
         const lines = pdf.splitTextToSize(historyLine, pdf.internal.pageSize.getWidth() - 48);
         if (cursorY + (lines.length * 11) > pdf.internal.pageSize.getHeight() - 32) {
           pdf.addPage();
@@ -1944,7 +1944,7 @@
     }
 
     return text
-      .replace(/\s*\n+\s*/g, " • ")
+      .replace(/\s*\n+\s*/g, " - ")
       .replace(/^Alterado em\s+/i, "Editado em ")
       .replace(/\s+\|\s+/g, ". ")
       .replace(/:\s*"([^"]*)"\s*->\s*"([^"]*)"/g, ': $1 -> $2')
@@ -2072,6 +2072,7 @@
     const currentValue = String(select.value || "").trim();
     const uniqueOptions = Array.from(new Set((options || []).map((value) => String(value || "").trim()).filter(Boolean)));
     const highlightedOptions = Array.from(new Set(highlightedValues.map((value) => String(value || "").trim()).filter(Boolean)));
+    select.dataset.highlightedValues = JSON.stringify(highlightedOptions);
     const remainingOptions = uniqueOptions.filter((value) => !highlightedOptions.includes(value));
     select.innerHTML = "";
 
@@ -2082,10 +2083,10 @@
     select.appendChild(placeholderOption);
 
     if (highlightedOptions.length) {
-      appendOptionGroup(select, "Destaques", highlightedOptions, currentValue, true);
+      appendOptionGroup(select, "", highlightedOptions, currentValue, true);
     }
 
-    appendOptionGroup(select, highlightedOptions.length ? "Demais opcoes" : "", remainingOptions, currentValue, false);
+    appendOptionGroup(select, "", remainingOptions, currentValue, false);
 
     if (currentValue && !uniqueOptions.includes(currentValue)) {
       const dynamicOption = document.createElement("option");
@@ -2094,6 +2095,8 @@
       dynamicOption.selected = true;
       select.appendChild(dynamicOption);
     }
+
+    syncHighlightedSelectState(select);
   }
 
   function appendOptionGroup(select, label, options, currentValue, isHighlighted) {
@@ -2110,7 +2113,7 @@
     options.forEach((optionValue) => {
       const option = document.createElement("option");
       option.value = optionValue;
-      option.textContent = isHighlighted ? `Destaque • ${optionValue}` : optionValue;
+      option.textContent = isHighlighted ? String(optionValue || "").toUpperCase() : optionValue;
       option.selected = currentValue === optionValue;
       if (isHighlighted) {
         option.className = "select-option-highlight";
@@ -2305,6 +2308,7 @@
     const text = String(value || "").trim();
     if (!text) {
       select.value = "";
+      syncHighlightedSelectState(select);
       return;
     }
 
@@ -2317,6 +2321,35 @@
     }
 
     select.value = text;
+    syncHighlightedSelectState(select);
+  }
+
+  function syncHighlightedSelectState(select) {
+    if (!(select instanceof HTMLSelectElement)) {
+      return;
+    }
+
+    const highlightedValues = readHighlightedSelectValues(select);
+    const currentValue = String(select.value || "").trim();
+    select.classList.toggle("select-has-highlighted-value", highlightedValues.includes(currentValue));
+  }
+
+  function readHighlightedSelectValues(select) {
+    if (!(select instanceof HTMLSelectElement)) {
+      return [];
+    }
+
+    const raw = String(select.dataset.highlightedValues || "").trim();
+    if (!raw) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.map((value) => String(value || "").trim()).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
   }
 
   function resetAutoFilledFieldLocks() {
@@ -3084,3 +3117,4 @@
     return `${year}-${month}-${day}`;
   }
 })();
+
