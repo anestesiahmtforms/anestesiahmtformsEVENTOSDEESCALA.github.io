@@ -29,9 +29,9 @@
   // Endpoint operacional do envio de eventos.
   // Referencia de codigo-fonte: tools/apps-script/SAHMT-eventos-registros.gs
   // Implantacao ativa confirmada em 14/08/2026:
-  // https://script.google.com/macros/s/AKfycbxzO8FuAuwCfrE81wuJ9i-6vFc8HWT0ZWzWxlCwYqrntV1SiuWeClbaA6QPZdv_soQQ/exec
+  // https://script.google.com/macros/s/AKfycbwUT0B5zuLs1GvJTgAoelAvgthLovYNMn61Jm4NjC07Z_LQ-MgL4yqQ91NLqK8Nu00T/exec
   const eventEntryConfig = {
-    endpointUrl: "https://script.google.com/macros/s/AKfycbxzO8FuAuwCfrE81wuJ9i-6vFc8HWT0ZWzWxlCwYqrntV1SiuWeClbaA6QPZdv_soQQ/exec",
+    endpointUrl: "https://script.google.com/macros/s/AKfycbwUT0B5zuLs1GvJTgAoelAvgthLovYNMn61Jm4NjC07Z_LQ-MgL4yqQ91NLqK8Nu00T/exec",
     requestTimeoutMs: 15000
   };
   const highlightedEventPeople = [
@@ -243,7 +243,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-15", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-16", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
