@@ -174,7 +174,10 @@
   }
 
   if (elements.eventTypeInput) {
-    elements.eventTypeInput.addEventListener("change", updateEventEntryState);
+    elements.eventTypeInput.addEventListener("change", () => {
+      applyEventTypeDefaults();
+      updateEventEntryState();
+    });
   }
 
   elements.memberStatusInput?.addEventListener("input", updateEventEntryState);
@@ -1323,6 +1326,14 @@
       option.selected = currentValue === optionValue;
       select.appendChild(option);
     });
+
+    if (currentValue && !options.includes(currentValue)) {
+      const dynamicOption = document.createElement("option");
+      dynamicOption.value = currentValue;
+      dynamicOption.textContent = currentValue;
+      dynamicOption.selected = true;
+      select.appendChild(dynamicOption);
+    }
   }
 
   function applyEventTypeDefaults() {
@@ -1334,19 +1345,19 @@
     const defaults = eventTypeDefaults.get(eventType);
 
     if (elements.delayMultipleInput && defaults.delayMultiple) {
-      elements.delayMultipleInput.value = defaults.delayMultiple;
+      setSelectControlValue(elements.delayMultipleInput, defaults.delayMultiple);
     }
 
     if (elements.shiftInput && defaults.shift) {
-      elements.shiftInput.value = defaults.shift;
+      setSelectControlValue(elements.shiftInput, defaults.shift);
     }
 
     if (elements.payerInput && defaults.payer) {
-      elements.payerInput.value = defaults.payer;
+      setSelectControlValue(elements.payerInput, defaults.payer);
     }
 
     if (elements.creditorInput && defaults.creditor) {
-      elements.creditorInput.value = defaults.creditor;
+      setSelectControlValue(elements.creditorInput, defaults.creditor);
     }
   }
 
@@ -1358,8 +1369,6 @@
     const shift = String(elements.shiftInput?.value || "").trim();
     const delayMultiple = Number.parseFloat(String(elements.delayMultipleInput?.value || "").replace(",", "."));
     const rule = getEventEntryRule(normalizedEventType);
-
-    applyEventTypeDefaults();
 
     toggleEventField(elements.eventDescriptionInput, rule.showDescription);
     toggleEventField(elements.delayMultipleInput, rule.showDelayMultiple);
@@ -1395,11 +1404,11 @@
     }
 
     if (elements.payerInput && rule.autoPayer) {
-      elements.payerInput.value = resolveEventEntryPayer(rule, memberName);
+      setSelectControlValue(elements.payerInput, resolveEventEntryPayer(rule, memberName));
     }
 
     if (elements.creditorInput && rule.autoCreditor) {
-      elements.creditorInput.value = resolveEventEntryCreditor(rule, substitute);
+      setSelectControlValue(elements.creditorInput, resolveEventEntryCreditor(rule, substitute));
     }
 
     if (elements.amountToPayInput && rule.autoAmount) {
@@ -1519,6 +1528,28 @@
     }
 
     control.required = required;
+  }
+
+  function setSelectControlValue(select, value) {
+    if (!select) {
+      return;
+    }
+
+    const text = String(value || "").trim();
+    if (!text) {
+      select.value = "";
+      return;
+    }
+
+    let option = Array.from(select.options).find((item) => item.value === text);
+    if (!option) {
+      option = document.createElement("option");
+      option.value = text;
+      option.textContent = text;
+      select.appendChild(option);
+    }
+
+    select.value = text;
   }
 
   function resolveEventEntryPayer(rule, memberName) {
