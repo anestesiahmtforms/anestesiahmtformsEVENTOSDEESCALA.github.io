@@ -29,9 +29,9 @@
   // Endpoint operacional do envio de eventos.
   // Referencia de codigo-fonte: tools/apps-script/SAHMT-eventos-registros.gs
   // Implantacao ativa confirmada em 14/08/2026:
-  // https://script.google.com/macros/s/AKfycbxvsLrJL4PBoWaNQka8C2sk3SkNeo8KfBPHSHGYk-YuLPn2h4BDT_B1bR3aW02hapt-/exec
+  // https://script.google.com/macros/s/AKfycbxzO8FuAuwCfrE81wuJ9i-6vFc8HWT0ZWzWxlCwYqrntV1SiuWeClbaA6QPZdv_soQQ/exec
   const eventEntryConfig = {
-    endpointUrl: "https://script.google.com/macros/s/AKfycbxvsLrJL4PBoWaNQka8C2sk3SkNeo8KfBPHSHGYk-YuLPn2h4BDT_B1bR3aW02hapt-/exec",
+    endpointUrl: "https://script.google.com/macros/s/AKfycbxzO8FuAuwCfrE81wuJ9i-6vFc8HWT0ZWzWxlCwYqrntV1SiuWeClbaA6QPZdv_soQQ/exec",
     requestTimeoutMs: 15000
   };
   const siglaStateStorageKey = "sahmt-sigla-checks-v1";
@@ -229,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-9", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-10", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
