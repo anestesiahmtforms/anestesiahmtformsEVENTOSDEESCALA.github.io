@@ -229,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-3", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-4", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -976,7 +976,7 @@
       devedor: payer,
       pagador: payer,
       responsavelPeloOnus: payer,
-      credor,
+      credor: creditor,
       resultadoCredor: creditor,
       valorPagar: amountToPay,
       valorAPagar: amountToPay,
