@@ -243,7 +243,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-16", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-17", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1451,27 +1451,28 @@
         ["Pagador", record.pagador],
         ["Credor", record.credor],
         ["Valor a pagar", record.valor],
-        ["Ultima modificacao", record.history]
+        ["Ultima edicao", formatRecordHistoryForDisplay(record.history)]
       ]
         .filter(([, value]) => String(value || "").trim())
         .forEach(([label, value]) => {
           const row = document.createElement("div");
           row.className = "record-card__row";
-          if (label === "Ultima modificacao") {
+          if (label === "Ultima edicao") {
             row.classList.add("record-card__row--history");
           }
 
           const labelElement = document.createElement("span");
           labelElement.className = "record-card__label";
-          if (label === "Ultima modificacao") {
+          if (label === "Ultima edicao") {
             labelElement.classList.add("record-card__label--history");
           }
           labelElement.textContent = label;
 
           const valueElement = document.createElement("span");
           valueElement.className = "record-card__value";
-          if (label === "Ultima modificacao") {
+          if (label === "Ultima edicao") {
             valueElement.classList.add("record-card__value--history");
+            valueElement.title = String(value || "");
           }
           valueElement.textContent = value;
 
@@ -1549,6 +1550,21 @@
 
   function getEventEntrySubmitLabel() {
     return isEditingEventRecord() ? "Salvar alteracao" : "Salvar na planilha";
+  }
+
+  function formatRecordHistoryForDisplay(value) {
+    const text = String(value || "").trim();
+    if (!text) {
+      return "";
+    }
+
+    return text
+      .replace(/\s*\n+\s*/g, " • ")
+      .replace(/^Alterado em\s+/i, "Editado em ")
+      .replace(/\s+\|\s+/g, ". ")
+      .replace(/:\s*"([^"]*)"\s*->\s*"([^"]*)"/g, ': $1 -> $2')
+      .replace(/\s{2,}/g, " ")
+      .trim();
   }
 
   function normalizeRecordDate(value) {
