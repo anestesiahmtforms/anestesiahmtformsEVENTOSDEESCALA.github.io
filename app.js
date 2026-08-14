@@ -222,9 +222,14 @@
   }
 
   elements.memberStatusInput?.addEventListener("input", updateEventEntryState);
+  elements.eventDateInput?.addEventListener("input", updateEventEntryState);
+  elements.eventDescriptionInput?.addEventListener("input", updateEventEntryState);
   elements.substituteInput?.addEventListener("change", updateEventEntryState);
   elements.shiftInput?.addEventListener("change", updateEventEntryState);
   elements.delayMultipleInput?.addEventListener("change", updateEventEntryState);
+  elements.payerInput?.addEventListener("change", updateEventEntryState);
+  elements.creditorInput?.addEventListener("change", updateEventEntryState);
+  elements.amountToPayInput?.addEventListener("input", updateEventEntryState);
 
   if (elements.installButton) {
     elements.installButton.addEventListener("click", async () => {
@@ -270,7 +275,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-22", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-23", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1831,7 +1836,7 @@
       const summaryStartY = (pdf.lastAutoTable?.finalY || 100) + 18;
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(11);
-      pdf.text("Resumo por credor e pagador", 24, summaryStartY);
+      pdf.text("Consolidado por credor e pagador", 24, summaryStartY);
 
       pdf.autoTable({
         startY: summaryStartY + 10,
@@ -1839,7 +1844,7 @@
           "Credor",
           "Pagador",
           "Datas",
-          "Total a receber"
+          "Valor total devido"
         ]],
         body: summaryRows.map((row) => ([
           row.credor,
@@ -2164,6 +2169,8 @@
       const amount = resolveEventEntryAmount(rule, shift, Number.isFinite(delayMultiple) ? delayMultiple : 0);
       elements.amountToPayInput.value = formatCurrencyInput(amount);
     }
+
+    syncEventEntryFieldStates();
   }
 
   function getEventEntryRule(normalizedEventType) {
@@ -2361,6 +2368,50 @@
       field.classList.toggle("entry-field--disabled", baseDisabled || autoLocked);
       field.classList.toggle("entry-field--locked", autoLocked);
     }
+  }
+
+  function syncEventEntryFieldStates() {
+    const controls = getEventEntryControls();
+    const isComplete = controls
+      .filter((control) => isVisibleEventEntryField(control) && control.required && !control.disabled)
+      .every((control) => String(control.value || "").trim());
+
+    controls.forEach((control) => {
+      const field = control.closest(".entry-field");
+      if (!field) {
+        return;
+      }
+
+      const isVisible = isVisibleEventEntryField(control);
+      const autoLocked = hasAutoFilledFieldLock(control);
+      const isManualActive = isVisible && !control.disabled && !autoLocked;
+      const hasValue = Boolean(String(control.value || "").trim());
+      const isPending = isManualActive && control.required && !hasValue;
+      const isCompleteField = isVisible && hasValue && (autoLocked || isComplete);
+
+      field.classList.toggle("entry-field--pending", isPending);
+      field.classList.toggle("entry-field--autofilled", isVisible && autoLocked && hasValue);
+      field.classList.toggle("entry-field--complete", isCompleteField);
+    });
+  }
+
+  function getEventEntryControls() {
+    return [
+      elements.eventDateInput,
+      elements.memberStatusInput,
+      elements.eventTypeInput,
+      elements.eventDescriptionInput,
+      elements.delayMultipleInput,
+      elements.substituteInput,
+      elements.shiftInput,
+      elements.payerInput,
+      elements.creditorInput,
+      elements.amountToPayInput
+    ].filter(Boolean);
+  }
+
+  function isVisibleEventEntryField(control) {
+    return Boolean(control && !control.closest(".entry-field")?.classList.contains("hidden"));
   }
 
   function resolveEventEntryPayer(rule, memberName) {
