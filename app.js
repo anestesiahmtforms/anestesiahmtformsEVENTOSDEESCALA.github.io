@@ -243,7 +243,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-14", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-15", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -984,7 +984,9 @@
     const creditor = String(elements.creditorInput?.value || "").trim();
     const amountToPay = String(elements.amountToPayInput?.value || "").trim();
     const origin = "PWA Eventos de escala";
-    const createdAtIso = new Date().toISOString();
+    const createdAtIso = isEditingEventRecord()
+      ? String(activeEventRecordEdit.timestampRaw || activeEventRecordEdit.timestamp || new Date().toISOString()).trim()
+      : new Date().toISOString();
     const editMetadata = isEditingEventRecord() ? {
       operation: "update",
       rowIndex: activeEventRecordEdit.rowIndex,
@@ -1238,7 +1240,8 @@
     }
 
     const csvText = await response.text();
-    return parseCsvRows(csvText)
+    return dedupeEventRecords(
+      parseCsvRows(csvText)
       .filter((row) => row.some((cell) => String(cell || "").trim()))
       .map((row, index) => ({
         rowIndex: index + 2,
@@ -1259,7 +1262,7 @@
         history: String(row[12] || "").trim()
       }))
       .filter((record) => record.dataDoEventoKey)
-      .sort(compareEventRecordsDesc);
+    ).sort(compareEventRecordsDesc);
   }
 
   function upsertRecentEventRecord(payload, result) {
@@ -1337,6 +1340,46 @@
 
   function isSameRecordRow(left, right) {
     return Number(left?.rowIndex || 0) > 0 && Number(left?.rowIndex || 0) === Number(right?.rowIndex || -1);
+  }
+
+  function dedupeEventRecords(records) {
+    const grouped = new Map();
+
+    (records || []).forEach((record) => {
+      const key = buildEventRecordIdentity(record);
+      const current = grouped.get(key);
+      if (!current || shouldReplaceEventRecord(current, record)) {
+        grouped.set(key, record);
+      }
+    });
+
+    return Array.from(grouped.values());
+  }
+
+  function buildEventRecordIdentity(record) {
+    return [
+      String(record?.timestampRaw || record?.timestamp || "").trim(),
+      String(record?.membro || "").trim()
+    ].join("||");
+  }
+
+  function shouldReplaceEventRecord(current, candidate) {
+    const currentHistory = String(current?.history || "").trim();
+    const candidateHistory = String(candidate?.history || "").trim();
+    if (!currentHistory && candidateHistory) {
+      return true;
+    }
+    if (currentHistory && !candidateHistory) {
+      return false;
+    }
+
+    const currentRowIndex = Number(current?.rowIndex || 0);
+    const candidateRowIndex = Number(candidate?.rowIndex || 0);
+    if (candidateRowIndex !== currentRowIndex) {
+      return candidateRowIndex > currentRowIndex;
+    }
+
+    return compareEventRecordsDesc(candidate, current) < 0;
   }
 
   function formatRecordTimestamp(value) {
