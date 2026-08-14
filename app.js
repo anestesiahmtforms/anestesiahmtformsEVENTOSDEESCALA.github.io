@@ -274,7 +274,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-25", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-26", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -2071,9 +2071,10 @@
     const highlightedValues = Array.isArray(config.highlightedValues) ? config.highlightedValues : [];
     const currentValue = String(select.value || "").trim();
     const uniqueOptions = Array.from(new Set((options || []).map((value) => String(value || "").trim()).filter(Boolean)));
-    const highlightedOptions = Array.from(new Set(highlightedValues.map((value) => String(value || "").trim()).filter(Boolean)));
-    select.dataset.highlightedValues = JSON.stringify(highlightedOptions);
-    const remainingOptions = uniqueOptions.filter((value) => !highlightedOptions.includes(value));
+    const normalizedHighlightedValues = Array.from(new Set(highlightedValues.map(normalizeSelectableValue).filter(Boolean)));
+    const highlightedOptions = uniqueOptions.filter((value) => normalizedHighlightedValues.includes(normalizeSelectableValue(value)));
+    select.dataset.highlightedValues = JSON.stringify(normalizedHighlightedValues);
+    const remainingOptions = uniqueOptions.filter((value) => !normalizedHighlightedValues.includes(normalizeSelectableValue(value)));
     select.innerHTML = "";
 
     const placeholderOption = document.createElement("option");
@@ -2330,7 +2331,7 @@
     }
 
     const highlightedValues = readHighlightedSelectValues(select);
-    const currentValue = String(select.value || "").trim();
+    const currentValue = normalizeSelectableValue(select.value);
     select.classList.toggle("select-has-highlighted-value", highlightedValues.includes(currentValue));
   }
 
@@ -2346,10 +2347,18 @@
 
     try {
       const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.map((value) => String(value || "").trim()).filter(Boolean) : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeSelectableValue).filter(Boolean) : [];
     } catch {
       return [];
     }
+  }
+
+  function normalizeSelectableValue(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
   }
 
   function resetAutoFilledFieldLocks() {
