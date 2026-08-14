@@ -469,9 +469,6 @@ body.modal-open {
 .record-card__value--history {
   color: #8a3500;
   font-weight: 800;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .card-header,
