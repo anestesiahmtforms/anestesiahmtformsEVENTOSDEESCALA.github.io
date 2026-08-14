@@ -1,6 +1,6 @@
 # Deploy do Apps Script de Eventos
 
-Referencia operacional confirmada em 14/08/2026.
+Referencia operacional atualizada em 14/08/2026.
 
 ## Arquivo-fonte
 
@@ -17,7 +17,8 @@ Referencia operacional confirmada em 14/08/2026.
 
 ## Planilha alvo
 
-- Spreadsheet ID: `1oMLWFUWh8K2MSFfqbrVlHICeM9S4ysfya3bvvfEplH0`
+- Spreadsheet ID: `1WAeUMVOj21LEsWOE7RzsoSF_2QW1mQnMBxZuWupWnCI`
+- Planilha: `Eventos de escala - Referencia PWA 2026`
 - Aba: `Registros`
 
 ## Estrutura gravada

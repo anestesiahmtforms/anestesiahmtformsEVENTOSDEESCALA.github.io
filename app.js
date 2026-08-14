@@ -22,7 +22,7 @@
     ["DOMINGO 2026", "Domingo"]
   ];
   const vacationSheetTitle = "FERIAS 2026";
-  const eventListsSpreadsheetId = "1oMLWFUWh8K2MSFfqbrVlHICeM9S4ysfya3bvvfEplH0";
+  const eventListsSpreadsheetId = "1WAeUMVOj21LEsWOE7RzsoSF_2QW1mQnMBxZuWupWnCI";
   const eventListsSheetTitle = "Listas";
   const recordsSheetTitle = "Registros";
   const syncConfig = window.SAHMT_SYNC_CONFIG || {};
