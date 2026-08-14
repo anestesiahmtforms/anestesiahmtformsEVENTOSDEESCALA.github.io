@@ -229,7 +229,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-5", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-6", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -930,7 +930,9 @@
       upsertRecentEventRecord(payload);
       renderRecordsForDate(elements.recordsDateInput?.value || todayKey);
       resetEventEntryForm(payload.dataDoEvento);
-      hydrateEventRecords().catch(() => {});
+      window.setTimeout(() => {
+        hydrateEventRecords().catch(() => {});
+      }, 2500);
       setEventEntryStatus(successMessage, "success");
       window.setTimeout(() => {
         closeEventEntryModal();
