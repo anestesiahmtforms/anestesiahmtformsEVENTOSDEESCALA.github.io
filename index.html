@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=20260814-1">
+  <link rel="stylesheet" href="./styles.css?v=20260814-2">
 </head>
 <body>
   <div class="page-shell">
@@ -66,29 +66,6 @@
           </div>
         </section>
 
-        <section class="records-banner">
-          <div class="card-header">
-            <div>
-              <p class="card-title">Registros do dia</p>
-            </div>
-          </div>
-
-          <label class="date-field" for="recordsDateInput">
-            <span>Data dos registros</span>
-            <input id="recordsDateInput" type="date">
-          </label>
-
-          <div id="recordsLoadingState" class="notice hidden">
-            Carregando registros do dia...
-          </div>
-
-          <div id="recordsEmptyState" class="empty-state hidden">
-            Nenhum registro encontrado para esta data.
-          </div>
-
-          <div id="recordsList" class="records-list"></div>
-        </section>
-
         <div class="schedule-top">
           <div>
             <p id="scheduleHeading" class="eyebrow"></p>
@@ -116,6 +93,31 @@
               aria-label="Abrir escala e ferias 2026 em imagens"
             ><span class="vacation-file-link__scale">Escala</span><span class="vacation-file-link__vacation">/Ferias</span></a>
           </div>
+        </section>
+      </section>
+
+      <section class="panel-card records-card">
+        <section class="records-banner">
+          <div class="card-header">
+            <div>
+              <p class="card-title">Registros do dia</p>
+            </div>
+          </div>
+
+          <label class="date-field" for="recordsDateInput">
+            <span>Data dos registros</span>
+            <input id="recordsDateInput" type="date">
+          </label>
+
+          <div id="recordsLoadingState" class="notice hidden">
+            Carregando registros do dia...
+          </div>
+
+          <div id="recordsEmptyState" class="empty-state hidden">
+            Nenhum registro encontrado para esta data.
+          </div>
+
+          <div id="recordsList" class="records-list"></div>
         </section>
       </section>
 

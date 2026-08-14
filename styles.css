@@ -151,6 +151,10 @@ body.modal-open {
   border-color: rgba(199, 154, 62, 0.46);
 }
 
+.records-card {
+  border-color: rgba(199, 154, 62, 0.28);
+}
+
 .entry-card {
   border-color: rgba(13, 50, 87, 0.14);
 }
@@ -351,7 +355,6 @@ body.modal-open {
 }
 
 .records-banner {
-  margin-bottom: 8px;
   padding: 8px;
   border-radius: 18px;
   background: rgba(248, 243, 232, 0.72);
