@@ -105,6 +105,16 @@
     recordsLoadingState: document.getElementById("recordsLoadingState"),
     recordsEmptyState: document.getElementById("recordsEmptyState"),
     recordsList: document.getElementById("recordsList"),
+    openMonthlyRecordsModal: document.getElementById("openMonthlyRecordsModal"),
+    monthlyRecordsModal: document.getElementById("monthlyRecordsModal"),
+    monthlyRecordsBackdrop: document.getElementById("monthlyRecordsBackdrop"),
+    closeMonthlyRecordsModal: document.getElementById("closeMonthlyRecordsModal"),
+    monthlyRecordsInput: document.getElementById("monthlyRecordsInput"),
+    shareMonthlyPdfButton: document.getElementById("shareMonthlyPdfButton"),
+    monthlyRecordsStatus: document.getElementById("monthlyRecordsStatus"),
+    monthlyRecordsSummary: document.getElementById("monthlyRecordsSummary"),
+    monthlyRecordsEmptyState: document.getElementById("monthlyRecordsEmptyState"),
+    monthlyRecordsList: document.getElementById("monthlyRecordsList"),
     rangeLabel: document.getElementById("rangeLabel"),
     outOfRangeNotice: document.getElementById("outOfRangeNotice"),
     scheduleHeading: document.getElementById("scheduleHeading"),
@@ -135,6 +145,9 @@
   if (elements.recordsDateInput) {
     elements.recordsDateInput.value = todayKey;
   }
+  if (elements.monthlyRecordsInput) {
+    elements.monthlyRecordsInput.value = todayKey.slice(0, 7);
+  }
   populateEventEntryOptionLists();
   hydrateMemberDirectory().catch(() => {});
   hydrateEventRecords().catch(() => {});
@@ -146,6 +159,10 @@
 
   elements.recordsDateInput?.addEventListener("change", () => {
     renderRecordsForDate(elements.recordsDateInput.value || todayKey);
+  });
+
+  elements.monthlyRecordsInput?.addEventListener("change", () => {
+    renderMonthlyRecordsForMonth(elements.monthlyRecordsInput.value || todayKey.slice(0, 7));
   });
 
   elements.prevButton.addEventListener("click", () => {
@@ -186,6 +203,11 @@
   if (elements.eventEntryForm) {
     elements.eventEntryForm.addEventListener("submit", onEventEntrySubmit);
   }
+
+  elements.openMonthlyRecordsModal?.addEventListener("click", openMonthlyRecordsModal);
+  elements.closeMonthlyRecordsModal?.addEventListener("click", closeMonthlyRecordsModal);
+  elements.monthlyRecordsBackdrop?.addEventListener("click", closeMonthlyRecordsModal);
+  elements.shareMonthlyPdfButton?.addEventListener("click", shareMonthlyRecordsPdf);
 
   if (elements.eventTypeInput) {
     elements.eventTypeInput.addEventListener("change", () => {
@@ -237,13 +259,17 @@
         closeSiglaChoiceModal(null);
         return;
       }
+      if (isMonthlyRecordsModalOpen()) {
+        closeMonthlyRecordsModal();
+        return;
+      }
       closeEventEntryModal();
     }
   });
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-18", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-19", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -854,7 +880,9 @@
 
     elements.eventEntryModal.classList.add("hidden");
     elements.eventEntryModal.setAttribute("aria-hidden", "true");
-    document.body.classList.remove("modal-open");
+    if (!isSiglaChoiceModalOpen() && !isMonthlyRecordsModalOpen()) {
+      document.body.classList.remove("modal-open");
+    }
     cancelActiveEventLaunch();
     activeEventRecordEdit = null;
     syncEventEntryModeUi();
@@ -922,6 +950,37 @@
       siglaChoiceResolver = null;
       resolver(selectedChoice || null);
     }
+  }
+
+  function openMonthlyRecordsModal() {
+    if (!elements.monthlyRecordsModal) {
+      return;
+    }
+
+    clearMonthlyRecordsStatus();
+    if (elements.monthlyRecordsInput && !elements.monthlyRecordsInput.value) {
+      elements.monthlyRecordsInput.value = todayKey.slice(0, 7);
+    }
+    renderMonthlyRecordsForMonth(elements.monthlyRecordsInput?.value || todayKey.slice(0, 7));
+    elements.monthlyRecordsModal.classList.remove("hidden");
+    elements.monthlyRecordsModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+  }
+
+  function closeMonthlyRecordsModal() {
+    if (!elements.monthlyRecordsModal) {
+      return;
+    }
+
+    elements.monthlyRecordsModal.classList.add("hidden");
+    elements.monthlyRecordsModal.setAttribute("aria-hidden", "true");
+    if (!isEventEntryModalOpen() && !isSiglaChoiceModalOpen()) {
+      document.body.classList.remove("modal-open");
+    }
+  }
+
+  function isMonthlyRecordsModalOpen() {
+    return Boolean(elements.monthlyRecordsModal && !elements.monthlyRecordsModal.classList.contains("hidden"));
   }
 
   function isEventEntryModalOpen() {
@@ -1220,6 +1279,9 @@
     } finally {
       toggle(elements.recordsLoadingState, false);
       renderRecordsForDate(elements.recordsDateInput?.value || todayKey);
+      if (isMonthlyRecordsModalOpen()) {
+        renderMonthlyRecordsForMonth(elements.monthlyRecordsInput?.value || todayKey.slice(0, 7));
+      }
     }
   }
 
@@ -1486,6 +1548,78 @@
     });
   }
 
+  function renderMonthlyRecordsForMonth(monthKey) {
+    if (!elements.monthlyRecordsList || !elements.monthlyRecordsEmptyState || !elements.monthlyRecordsSummary) {
+      return;
+    }
+
+    const activeMonth = normalizeMonthKey(monthKey) || todayKey.slice(0, 7);
+    const records = getMonthlyRecords(activeMonth);
+    elements.monthlyRecordsList.innerHTML = "";
+    toggle(elements.monthlyRecordsEmptyState, records.length === 0);
+    elements.monthlyRecordsSummary.textContent = `${formatMonthLabel(activeMonth)} • ${records.length} registro${records.length === 1 ? "" : "s"}`;
+
+    records.forEach((record, index) => {
+      const card = document.createElement("article");
+      card.className = `record-card record-card--tone-${(index % 4) + 1}`;
+
+      const title = document.createElement("p");
+      title.className = "record-card__title";
+      title.textContent = `${record.tipo || "Registro"}${record.dataDoEvento ? ` • ${record.dataDoEvento}` : ""}`;
+      card.appendChild(title);
+
+      const rows = document.createElement("div");
+      rows.className = "record-card__rows";
+
+      [
+        ["Membro", record.membro],
+        ["Descricao", record.descricao],
+        ["Substituto", record.substituto],
+        ["Turno", record.turno],
+        ["Pagador", record.pagador],
+        ["Credor", record.credor],
+        ["Valor", record.valor],
+        ["Ultima edicao", formatRecordHistoryForDisplay(record.history)]
+      ]
+        .filter(([, value]) => String(value || "").trim())
+        .forEach(([label, value]) => {
+          const row = document.createElement("div");
+          row.className = "record-card__row";
+          if (label === "Ultima edicao") {
+            row.classList.add("record-card__row--history");
+          }
+
+          const labelElement = document.createElement("span");
+          labelElement.className = "record-card__label";
+          if (label === "Ultima edicao") {
+            labelElement.classList.add("record-card__label--history");
+          }
+          labelElement.textContent = label;
+
+          const valueElement = document.createElement("span");
+          valueElement.className = "record-card__value";
+          if (label === "Ultima edicao") {
+            valueElement.classList.add("record-card__value--history");
+          }
+          valueElement.textContent = value;
+
+          row.appendChild(labelElement);
+          row.appendChild(valueElement);
+          rows.appendChild(row);
+        });
+
+      card.appendChild(rows);
+      elements.monthlyRecordsList.appendChild(card);
+    });
+  }
+
+  function getMonthlyRecords(monthKey) {
+    const normalizedMonth = normalizeMonthKey(monthKey);
+    return eventRecords
+      .filter((record) => String(record?.dataDoEventoKey || "").startsWith(`${normalizedMonth}-`))
+      .sort(compareEventRecordsDesc);
+  }
+
   function startEventRecordEdit(record) {
     if (!record) {
       return;
@@ -1550,6 +1684,166 @@
 
   function getEventEntrySubmitLabel() {
     return isEditingEventRecord() ? "Salvar alteracao" : "Salvar na planilha";
+  }
+
+  function normalizeMonthKey(value) {
+    const text = String(value || "").trim();
+    return /^\d{4}-\d{2}$/.test(text) ? text : "";
+  }
+
+  function formatMonthLabel(monthKey) {
+    const normalized = normalizeMonthKey(monthKey);
+    if (!normalized) {
+      return "Mes invalido";
+    }
+
+    return new Intl.DateTimeFormat("pt-BR", {
+      month: "long",
+      year: "numeric"
+    }).format(new Date(`${normalized}-01T12:00:00`));
+  }
+
+  function setMonthlyRecordsStatus(message, tone) {
+    if (!elements.monthlyRecordsStatus) {
+      return;
+    }
+
+    elements.monthlyRecordsStatus.textContent = message;
+    elements.monthlyRecordsStatus.classList.toggle("hidden", !message);
+    elements.monthlyRecordsStatus.classList.toggle("is-error", tone === "error");
+    elements.monthlyRecordsStatus.classList.toggle("is-success", tone === "success");
+  }
+
+  function clearMonthlyRecordsStatus() {
+    setMonthlyRecordsStatus("", "");
+  }
+
+  async function shareMonthlyRecordsPdf() {
+    const monthKey = normalizeMonthKey(elements.monthlyRecordsInput?.value || todayKey.slice(0, 7));
+    const records = getMonthlyRecords(monthKey);
+
+    if (!records.length) {
+      setMonthlyRecordsStatus("Nao ha registros no mes escolhido para gerar o PDF.", "error");
+      return;
+    }
+
+    setMonthlyRecordsStatus("Gerando PDF mensal...", "");
+
+    try {
+      const pdfFile = await buildMonthlyRecordsPdfFile(monthKey, records);
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          title: `Registros ${formatMonthLabel(monthKey)}`,
+          text: `Registros mensais de ${formatMonthLabel(monthKey)}.`,
+          files: [pdfFile]
+        });
+        setMonthlyRecordsStatus("PDF pronto para envio no WhatsApp.", "success");
+        return;
+      }
+
+      const shareUrl = `https://wa.me/?text=${encodeURIComponent(`Relatorio mensal pronto: ${pdfFile.name}`)}`;
+      window.open(shareUrl, "_blank", "noopener");
+      setMonthlyRecordsStatus("Seu aparelho nao permite anexar o PDF direto. Abri o WhatsApp para compartilhar a mensagem.", "error");
+    } catch (error) {
+      const detail = String(error?.message || "").trim();
+      setMonthlyRecordsStatus(`Nao foi possivel gerar ou compartilhar o PDF.${detail ? ` ${detail}` : ""}`, "error");
+    }
+  }
+
+  async function buildMonthlyRecordsPdfFile(monthKey, records) {
+    const jsPdfNamespace = window.jspdf;
+    if (!jsPdfNamespace?.jsPDF) {
+      throw new Error("Biblioteca de PDF indisponivel.");
+    }
+
+    const pdf = new jsPdfNamespace.jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4"
+    });
+
+    const title = `Registros de ${formatMonthLabel(monthKey)}`;
+    pdf.setFillColor(13, 50, 87);
+    pdf.rect(0, 0, pdf.internal.pageSize.getWidth(), 84, "F");
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(18);
+    pdf.text(title, 40, 42);
+    pdf.setFontSize(10);
+    pdf.text(`Gerado em ${new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date())}`, 40, 62);
+    pdf.setTextColor(20, 50, 84);
+
+    pdf.autoTable({
+      startY: 100,
+      head: [[
+        "Data",
+        "Membro",
+        "Evento",
+        "Descricao",
+        "Substituto",
+        "Turno",
+        "Pagador",
+        "Credor",
+        "Valor"
+      ]],
+      body: records.map((record) => ([
+        record.dataDoEvento || "",
+        record.membro || "",
+        record.tipo || "",
+        record.descricao || "",
+        record.substituto || "",
+        record.turno || "",
+        record.pagador || "",
+        record.credor || "",
+        record.valor || ""
+      ])),
+      theme: "grid",
+      styles: {
+        fontSize: 8,
+        cellPadding: 5,
+        lineColor: [220, 228, 238],
+        lineWidth: 0.5,
+        textColor: [20, 50, 84],
+        overflow: "linebreak"
+      },
+      headStyles: {
+        fillColor: [13, 50, 87],
+        textColor: [255, 255, 255],
+        fontStyle: "bold"
+      },
+      alternateRowStyles: {
+        fillColor: [247, 242, 232]
+      },
+      margin: {
+        left: 24,
+        right: 24,
+        bottom: 48
+      }
+    });
+
+    const historyStartY = (pdf.lastAutoTable?.finalY || 100) + 18;
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(11);
+    pdf.text("Historico de edicoes", 24, historyStartY);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8.5);
+
+    let cursorY = historyStartY + 14;
+    records
+      .filter((record) => String(record.history || "").trim())
+      .forEach((record) => {
+        const historyLine = `${record.dataDoEvento || ""} • ${record.membro || ""} • ${formatRecordHistoryForDisplay(record.history)}`;
+        const lines = pdf.splitTextToSize(historyLine, pdf.internal.pageSize.getWidth() - 48);
+        if (cursorY + (lines.length * 11) > pdf.internal.pageSize.getHeight() - 32) {
+          pdf.addPage();
+          cursorY = 36;
+        }
+        pdf.text(lines, 24, cursorY);
+        cursorY += lines.length * 11 + 6;
+      });
+
+    const blob = pdf.output("blob");
+    return new File([blob], `registros-${monthKey}.pdf`, { type: "application/pdf" });
   }
 
   function formatRecordHistoryForDisplay(value) {
