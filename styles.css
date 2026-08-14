@@ -346,6 +346,21 @@ body.modal-open {
   border-color: rgba(24, 183, 183, 0.56);
 }
 
+.entry-field select optgroup {
+  font-weight: 900;
+  color: rgba(13, 50, 87, 0.88);
+}
+
+.entry-field select optgroup.select-optgroup--highlight {
+  color: #9b5b00;
+}
+
+.entry-field select option.select-option-highlight {
+  color: #9b5b00;
+  background: rgba(255, 236, 193, 0.96);
+  font-weight: 800;
+}
+
 .search-banner {
   margin-bottom: 8px;
   padding: 8px;

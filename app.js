@@ -34,6 +34,15 @@
     endpointUrl: "https://script.google.com/macros/s/AKfycbxzO8FuAuwCfrE81wuJ9i-6vFc8HWT0ZWzWxlCwYqrntV1SiuWeClbaA6QPZdv_soQQ/exec",
     requestTimeoutMs: 15000
   };
+  const highlightedEventPeople = [
+    "Fernando Astrogildo",
+    "Bernardo Guimarães",
+    "Lucas Marques",
+    "Carolina Valadares",
+    "Jéssica Karine",
+    "Bruna Candida",
+    "CAIXA DA EQUIPE"
+  ];
   const siglaStateStorageKey = "sahmt-sigla-checks-v1";
   const siglaEventStateStorageKey = "sahmt-sigla-events-v1";
   const clientIdStorageKey = "sahmt-client-id-v1";
@@ -229,7 +238,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260814-11", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260814-12", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1415,19 +1424,27 @@
   function populateEventEntryOptionLists() {
     setSelectOptions(elements.eventTypeInput, eventFieldOptions.eventTypes, "Selecione o tipo de evento");
     setSelectOptions(elements.delayMultipleInput, eventFieldOptions.delayMultiples, "Selecione o multiplo");
-    setSelectOptions(elements.substituteInput, eventFieldOptions.substitutes, "Selecione o substituto");
+    setSelectOptions(elements.substituteInput, eventFieldOptions.substitutes, "Selecione o substituto", {
+      highlightedValues: highlightedEventPeople
+    });
     setSelectOptions(elements.shiftInput, eventFieldOptions.shifts, "Selecione o turno");
     setSelectOptions(elements.payerInput, eventFieldOptions.payers, "Selecione o pagador");
-    setSelectOptions(elements.creditorInput, eventFieldOptions.creditors, "Selecione o credor");
+    setSelectOptions(elements.creditorInput, eventFieldOptions.creditors, "Selecione o credor", {
+      highlightedValues: highlightedEventPeople
+    });
     updateEventEntryState();
   }
 
-  function setSelectOptions(select, options, placeholder) {
+  function setSelectOptions(select, options, placeholder, config = {}) {
     if (!select) {
       return;
     }
 
+    const highlightedValues = Array.isArray(config.highlightedValues) ? config.highlightedValues : [];
     const currentValue = String(select.value || "").trim();
+    const uniqueOptions = Array.from(new Set((options || []).map((value) => String(value || "").trim()).filter(Boolean)));
+    const highlightedOptions = Array.from(new Set(highlightedValues.map((value) => String(value || "").trim()).filter(Boolean)));
+    const remainingOptions = uniqueOptions.filter((value) => !highlightedOptions.includes(value));
     select.innerHTML = "";
 
     const placeholderOption = document.createElement("option");
@@ -1436,21 +1453,44 @@
     placeholderOption.selected = !currentValue;
     select.appendChild(placeholderOption);
 
-    options.forEach((optionValue) => {
-      const option = document.createElement("option");
-      option.value = optionValue;
-      option.textContent = optionValue;
-      option.selected = currentValue === optionValue;
-      select.appendChild(option);
-    });
+    if (highlightedOptions.length) {
+      appendOptionGroup(select, "Destaques", highlightedOptions, currentValue, true);
+    }
 
-    if (currentValue && !options.includes(currentValue)) {
+    appendOptionGroup(select, highlightedOptions.length ? "Demais opcoes" : "", remainingOptions, currentValue, false);
+
+    if (currentValue && !uniqueOptions.includes(currentValue)) {
       const dynamicOption = document.createElement("option");
       dynamicOption.value = currentValue;
       dynamicOption.textContent = currentValue;
       dynamicOption.selected = true;
       select.appendChild(dynamicOption);
     }
+  }
+
+  function appendOptionGroup(select, label, options, currentValue, isHighlighted) {
+    if (!select || !Array.isArray(options) || !options.length) {
+      return;
+    }
+
+    const container = label ? document.createElement("optgroup") : document.createDocumentFragment();
+    if (label && container instanceof HTMLOptGroupElement) {
+      container.label = label;
+      container.className = isHighlighted ? "select-optgroup select-optgroup--highlight" : "select-optgroup";
+    }
+
+    options.forEach((optionValue) => {
+      const option = document.createElement("option");
+      option.value = optionValue;
+      option.textContent = isHighlighted ? `Destaque • ${optionValue}` : optionValue;
+      option.selected = currentValue === optionValue;
+      if (isHighlighted) {
+        option.className = "select-option-highlight";
+      }
+      container.appendChild(option);
+    });
+
+    select.appendChild(container);
   }
 
   function applyEventTypeDefaults() {
