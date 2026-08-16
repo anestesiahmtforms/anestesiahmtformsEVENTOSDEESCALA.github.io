@@ -43,6 +43,8 @@
     "Bruna Candida",
     "CAIXA DA EQUIPE"
   ];
+  const appPassword = "8145";
+  const appAccessStorageKey = "sahmt-eventos-access-v1";
   const siglaStateStorageKey = "sahmt-sigla-checks-v1";
   const siglaEventStateStorageKey = "sahmt-sigla-events-v1";
   const clientIdStorageKey = "sahmt-client-id-v1";
@@ -72,6 +74,11 @@
   let autoFilledFieldLocks = new Set();
 
   const elements = {
+    authGate: document.getElementById("authGate"),
+    authForm: document.getElementById("authForm"),
+    authPasswordInput: document.getElementById("authPasswordInput"),
+    authStatus: document.getElementById("authStatus"),
+    appFrame: document.getElementById("appFrame"),
     dateInput: document.getElementById("dateInput"),
     eventDateInput: document.getElementById("eventDateInput"),
     eventEntryForm: document.getElementById("eventEntryForm"),
@@ -126,6 +133,10 @@
     siglasGrid: document.getElementById("siglasGrid"),
     vacationCard: document.getElementById("vacationCard")
   };
+
+  if (!ensureAuthorizedAccess()) {
+    return;
+  }
 
   if (elements.formattedDate) {
     elements.formattedDate.textContent = "Carregando escala...";
@@ -274,7 +285,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260815-01", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260816-01", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -497,6 +508,83 @@
     } catch (error) {
       // Ignore storage failures to avoid blocking the UI on restricted browsers.
     }
+  }
+
+  function ensureAuthorizedAccess() {
+    if (hasAuthorizedSession()) {
+      unlockApplication();
+      return true;
+    }
+
+    lockApplication();
+    bindAuthForm();
+    return false;
+  }
+
+  function hasAuthorizedSession() {
+    try {
+      return window.sessionStorage.getItem(appAccessStorageKey) === "granted";
+    } catch {
+      return false;
+    }
+  }
+
+  function bindAuthForm() {
+    if (!elements.authForm) {
+      return;
+    }
+
+    elements.authForm.addEventListener("submit", onAuthSubmit, { once: false });
+    window.setTimeout(() => {
+      elements.authPasswordInput?.focus();
+    }, 60);
+  }
+
+  function onAuthSubmit(event) {
+    event.preventDefault();
+
+    const submittedPassword = String(elements.authPasswordInput?.value || "").trim();
+    if (submittedPassword !== appPassword) {
+      setAuthStatus("Senha incorreta. Tente novamente.");
+      if (elements.authPasswordInput) {
+        elements.authPasswordInput.value = "";
+        elements.authPasswordInput.focus();
+      }
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(appAccessStorageKey, "granted");
+    } catch {
+      // Ignore storage failures; keep access only for the current load.
+    }
+
+    clearAuthStatus();
+    unlockApplication();
+    window.location.reload();
+  }
+
+  function lockApplication() {
+    elements.authGate?.classList.remove("hidden");
+    elements.appFrame?.classList.add("hidden");
+  }
+
+  function unlockApplication() {
+    elements.authGate?.classList.add("hidden");
+    elements.appFrame?.classList.remove("hidden");
+  }
+
+  function setAuthStatus(message) {
+    if (!elements.authStatus) {
+      return;
+    }
+
+    elements.authStatus.textContent = message;
+    elements.authStatus.classList.toggle("hidden", !message);
+  }
+
+  function clearAuthStatus() {
+    setAuthStatus("");
   }
 
   function loadSiglaEventState() {
