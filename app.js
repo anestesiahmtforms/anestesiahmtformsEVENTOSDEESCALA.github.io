@@ -79,6 +79,7 @@
     authPasswordInput: document.getElementById("authPasswordInput"),
     authStatus: document.getElementById("authStatus"),
     appFrame: document.getElementById("appFrame"),
+    openSupportLaunchButton: document.getElementById("openSupportLaunchButton"),
     dateInput: document.getElementById("dateInput"),
     eventDateInput: document.getElementById("eventDateInput"),
     eventEntryForm: document.getElementById("eventEntryForm"),
@@ -196,6 +197,8 @@
     });
   }
 
+  elements.openSupportLaunchButton?.addEventListener("click", openSupportEventLaunch);
+
   if (elements.closeEventEntryModal) {
     elements.closeEventEntryModal.addEventListener("click", closeEventEntryModal);
   }
@@ -285,7 +288,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260816-02", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260817-01", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -950,6 +953,19 @@
 
     resetEventEntryForm(dateKey);
     prefillMemberStatus(selectedChoice.name, dateKey);
+    openEventEntryModal();
+  }
+
+  function openSupportEventLaunch() {
+    const activeDate = String(elements.dateInput?.value || todayKey).trim() || todayKey;
+    resetEventEntryForm(activeDate);
+
+    if (elements.eventTypeInput) {
+      setSelectControlValue(elements.eventTypeInput, "Suporte");
+      setAutoFilledFieldLock(elements.eventTypeInput, true);
+    }
+
+    updateEventEntryState();
     openEventEntryModal();
   }
 

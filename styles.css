@@ -845,6 +845,29 @@ body.modal-open {
   font-size: 0.7rem;
 }
 
+.support-launch-button {
+  min-width: 0;
+  padding: 7px 14px;
+  border: 1px solid rgba(233, 133, 53, 0.34);
+  background: linear-gradient(135deg, rgba(255, 246, 235, 0.98) 0%, rgba(255, 224, 193, 0.98) 100%);
+  color: #b85f12;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow: 0 10px 22px rgba(233, 133, 53, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.88);
+}
+
+.support-launch-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(233, 133, 53, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.support-launch-button:focus-visible {
+  outline: 2px solid rgba(233, 133, 53, 0.42);
+  outline-offset: 2px;
+}
+
 .range-label,
 .eyebrow {
   margin: 0;
@@ -1832,6 +1855,11 @@ button:hover,
   .card-header,
   .schedule-top {
     align-items: center;
+  }
+
+  .support-launch-button {
+    padding: 6px 12px;
+    font-size: 0.6rem;
   }
 
   .search-banner {
