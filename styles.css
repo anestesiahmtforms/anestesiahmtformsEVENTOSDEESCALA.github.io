@@ -879,6 +879,7 @@ body.modal-open {
   display: grid;
   gap: 5px;
   margin-top: 6px;
+  min-width: 0;
 }
 
 .install-banner {
@@ -900,10 +901,14 @@ body.modal-open {
   gap: 4px;
   font-size: 0.55rem;
   font-weight: 700;
+  min-width: 0;
+  width: 100%;
 }
 
 .date-field input {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   border: 0;
   border-radius: 12px;
   padding: 8px 10px;
@@ -1865,6 +1870,16 @@ button:hover,
   .search-banner {
     padding: 6px;
     margin-bottom: 6px;
+  }
+
+  .controls-grid,
+  .date-field {
+    min-width: 0;
+  }
+
+  .date-field input {
+    width: 100%;
+    max-width: 100%;
   }
 
   .hero-logo-wrap {
