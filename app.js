@@ -26,12 +26,16 @@
   const eventListsSheetTitle = "Listas";
   const recordsSheetTitle = "Registros";
   const syncConfig = window.SAHMT_SYNC_CONFIG || {};
-  // Endpoint operacional do envio de eventos.
+  // Endpoints operacionais do envio de eventos.
   // Referencia de codigo-fonte: tools/apps-script/SAHMT-eventos-registros.gs
-  // Implantacao ativa confirmada em 14/08/2026:
-  // https://script.google.com/macros/s/AKfycbwUT0B5zuLs1GvJTgAoelAvgthLovYNMn61Jm4NjC07Z_LQ-MgL4yqQ91NLqK8Nu00T/exec
+  // Mantemos fallback entre implantacoes validas para o app continuar gravando
+  // mesmo quando um deploy antigo deixa de responder temporariamente.
   const eventEntryConfig = {
-    endpointUrl: "https://script.google.com/macros/s/AKfycbwUT0B5zuLs1GvJTgAoelAvgthLovYNMn61Jm4NjC07Z_LQ-MgL4yqQ91NLqK8Nu00T/exec",
+    endpointUrl: "https://script.google.com/macros/s/AKfycbxvsLrJL4PBoWaNQka8C2sk3SkNeo8KfBPHSHGYk-YuLPn2h4BDT_B1bR3aW02hapt-/exec",
+    fallbackEndpointUrls: [
+      "https://script.google.com/macros/s/AKfycbxzO8FuAuwCfrE81wuJ9i-6vFc8HWT0ZWzWxlCwYqrntV1SiuWeClbaA6QPZdv_soQQ/exec",
+      "https://script.google.com/macros/s/AKfycbwUT0B5zuLs1GvJTgAoelAvgthLovYNMn61Jm4NjC07Z_LQ-MgL4yqQ91NLqK8Nu00T/exec"
+    ],
     requestTimeoutMs: 15000
   };
   const highlightedEventPeople = [
@@ -289,7 +293,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260817-02", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260818-01", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -1122,15 +1126,13 @@
       commitActiveEventLaunch();
       upsertRecentEventRecord(payload, result);
       renderRecordsForDate(elements.recordsDateInput?.value || todayKey);
-      resetEventEntryForm(payload.dataDoEvento);
       window.setTimeout(() => {
         hydrateEventRecords().catch(() => {});
       }, 2500);
       setEventEntryStatus(successMessage, "success");
-      window.setTimeout(() => {
-        closeEventEntryModal();
-        window.alert(successMessage);
-      }, 180);
+      window.alert(successMessage);
+      resetEventEntryForm(payload.dataDoEvento);
+      closeEventEntryModal();
     } catch (error) {
       const detail = String(error?.message || "").trim();
       setEventEntryStatus(
@@ -1145,8 +1147,10 @@
   function buildEventEntryPayload() {
     const eventDate = String(elements.eventDateInput?.value || "").trim();
     const displayEventDate = formatRecordDate(eventDate);
-    const memberStatus = String(elements.memberStatusInput?.value || "").trim();
     const eventType = String(elements.eventTypeInput?.value || "").trim();
+    const normalizedEventType = normalizeEventType(eventType);
+    const isSupportShortcut = supportShortcutLaunchActive && normalizedEventType === "suporte" && !isEditingEventRecord();
+    const memberStatus = String(elements.memberStatusInput?.value || "").trim() || (isSupportShortcut ? "SUPORTE" : "");
     const eventDescription = String(elements.eventDescriptionInput?.value || "").trim();
     const delayMultiple = String(elements.delayMultipleInput?.value || "").trim();
     const substitute = String(elements.substituteInput?.value || "").trim();
@@ -1194,35 +1198,48 @@
   }
 
   async function postEventEntryPayload(payload) {
-    if (!eventEntryConfig.endpointUrl) {
+    const endpointUrls = [
+      eventEntryConfig.endpointUrl,
+      ...(Array.isArray(eventEntryConfig.fallbackEndpointUrls) ? eventEntryConfig.fallbackEndpointUrls : [])
+    ].map(normalizeEndpoint).filter(Boolean);
+
+    if (!endpointUrls.length) {
       throw new Error("ENDPOINT_MISSING");
     }
 
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), eventEntryConfig.requestTimeoutMs || 15000);
+    let lastError = null;
 
-    try {
-      const response = await fetch(eventEntryConfig.endpointUrl, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
+    for (const endpointUrl of endpointUrls) {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), eventEntryConfig.requestTimeoutMs || 15000);
 
-      const rawText = await response.text().catch(() => "");
-      const data = rawText ? JSON.parse(rawText) : {};
+      try {
+        const response = await fetch(endpointUrl, {
+          method: "POST",
+          mode: "cors",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
 
-      if (!response.ok || data.ok === false) {
-        throw new Error(data.message || "REQUEST_FAILED");
+        const rawText = await response.text().catch(() => "");
+        const data = rawText ? JSON.parse(rawText) : {};
+
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || "REQUEST_FAILED");
+        }
+
+        return data;
+      } catch (error) {
+        lastError = error;
+      } finally {
+        window.clearTimeout(timeoutId);
       }
-
-      return data;
-    } finally {
-      window.clearTimeout(timeoutId);
     }
+
+    throw lastError || new Error("REQUEST_FAILED");
   }
 
   function resetEventEntryForm(dateKey) {
