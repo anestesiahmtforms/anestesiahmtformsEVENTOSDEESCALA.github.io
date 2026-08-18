@@ -903,6 +903,8 @@ body.modal-open {
   font-weight: 700;
   min-width: 0;
   width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .date-field input {
