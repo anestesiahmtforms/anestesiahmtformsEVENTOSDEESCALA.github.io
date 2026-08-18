@@ -72,6 +72,7 @@
   let activeEventLaunch = null;
   let activeEventRecordEdit = null;
   let autoFilledFieldLocks = new Set();
+  let supportShortcutLaunchActive = false;
 
   const elements = {
     authGate: document.getElementById("authGate"),
@@ -288,7 +289,7 @@
 
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js?v=20260817-01", { updateViaCache: "none" })
+      navigator.serviceWorker.register("./service-worker.js?v=20260817-02", { updateViaCache: "none" })
         .then((registration) => registration.update())
         .catch(() => {});
     });
@@ -959,6 +960,7 @@
   function openSupportEventLaunch() {
     const activeDate = String(elements.dateInput?.value || todayKey).trim() || todayKey;
     resetEventEntryForm(activeDate);
+    supportShortcutLaunchActive = true;
 
     if (elements.eventTypeInput) {
       setSelectControlValue(elements.eventTypeInput, "Suporte");
@@ -1230,6 +1232,7 @@
 
     elements.eventEntryForm.reset();
     activeEventRecordEdit = null;
+    supportShortcutLaunchActive = false;
     resetAutoFilledFieldLocks();
     populateEventEntryOptionLists();
     clearNewEventEntryFields();
@@ -2237,19 +2240,22 @@
     const shift = String(elements.shiftInput?.value || "").trim();
     const delayMultiple = Number.parseFloat(String(elements.delayMultipleInput?.value || "").replace(",", "."));
     const rule = getEventEntryRule(normalizedEventType);
+    const hideMemberStatus = supportShortcutLaunchActive && normalizedEventType === "suporte" && !isEditingEventRecord();
 
+    toggleEventField(elements.memberStatusInput, !hideMemberStatus);
     toggleEventField(elements.eventDescriptionInput, rule.showDescription);
     toggleEventField(elements.delayMultipleInput, rule.showDelayMultiple);
     toggleEventField(elements.substituteInput, !rule.hideSubstitute);
     toggleEventField(elements.shiftInput, rule.showShift);
 
+    setFieldDisabled(elements.memberStatusInput, hideMemberStatus);
     setAutoFilledFieldLock(elements.payerInput, !isEditingEventRecord() && rule.autoPayer && Boolean(resolveEventEntryPayer(rule, memberName)));
     setAutoFilledFieldLock(elements.creditorInput, !isEditingEventRecord() && rule.autoCreditor && Boolean(resolveEventEntryCreditor(rule, substitute)));
     setAutoFilledFieldLock(elements.amountToPayInput, !isEditingEventRecord() && rule.autoAmount);
 
     setFieldDisabled(elements.substituteInput, rule.disableSubstitute);
     setFieldRequired(elements.eventDateInput, true);
-    setFieldRequired(elements.memberStatusInput, true);
+    setFieldRequired(elements.memberStatusInput, !hideMemberStatus);
     setFieldRequired(elements.eventTypeInput, true);
     setFieldRequired(elements.eventDescriptionInput, rule.showDescription);
     setFieldRequired(elements.delayMultipleInput, rule.showDelayMultiple);
@@ -2261,6 +2267,11 @@
 
     if (rule.disableSubstitute && elements.substituteInput) {
       elements.substituteInput.value = "";
+    }
+
+    if (hideMemberStatus && elements.memberStatusInput) {
+      elements.memberStatusInput.value = "";
+      setAutoFilledFieldLock(elements.memberStatusInput, false);
     }
 
     if (!rule.showDescription && elements.eventDescriptionInput) {
